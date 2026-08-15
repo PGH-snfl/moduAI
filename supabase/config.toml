@@ -1,0 +1,18 @@
+# Supabase Edge Function Configuration
+# This file configures the news crawler to run automatically
+
+[functions.crawl-news]
+enabled = true
+verify_jwt = false
+
+[functions.submit-tool]
+enabled = true
+verify_jwt = true
+
+[functions.collect-external-rankings]
+enabled = true
+verify_jwt = false
+
+[functions.collect-home-content]
+enabled = true
+verify_jwt = false

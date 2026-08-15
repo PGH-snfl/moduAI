@@ -1,0 +1,20 @@
+# 모두의 AI: Top AI Tools Directory for Korean Users
+Description: A comprehensive directory of Generative AI tools optimized for Korean workflows, featuring language support and domestic payment info.
+
+## Main Categories
+- **Text & Writing**: ChatGPT, Claude
+- **Image Generation**: Midjourney, Stable Diffusion
+- **Video Creation**: HeyGen, Luma Dream Machine
+- **Coding Assistant**: Cursor, GitHub Copilot
+
+## Top Recommended Tools (Korean Support)
+2. **DeepL**: Best-in-class translation.
+3. **ChatGPT**: The standard LLM, supports Korean well.
+4. **Perplexity**: Search engine with citations.
+
+## Pricing Models
+- Free
+- Freemium (Free tier available)
+- Paid (Subscription)
+
+Visit https://k-genai-custom-domain.com for the full interactive search and comparison.

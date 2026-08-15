@@ -1,0 +1,34 @@
+import { NavLink } from 'react-router-dom';
+import { LayoutDashboard, Newspaper, Wrench } from 'lucide-react';
+import { cn } from '@/lib/utils';
+
+const sections = [
+  { to: '/admin/dashboard', label: '대시보드', description: '전체 운영 현황', icon: LayoutDashboard },
+  { to: '/admin/tools', label: '도구 관리', description: '제보 검토와 등록 도구', icon: Wrench },
+  { to: '/admin/content', label: '메인 콘텐츠 관리', description: '추천·작업물·기술 트렌드', icon: Newspaper },
+];
+
+export function AdminSectionNav() {
+  return (
+    <nav aria-label="관리자 메뉴" className="grid gap-1">
+      {sections.map(({ to, label, description, icon: Icon }) => (
+        <NavLink
+          key={to}
+          to={to}
+          className={({ isActive }) => cn(
+            'flex min-w-0 items-center gap-3 rounded-xl px-3 py-3 transition-colors hover:bg-muted/60',
+            isActive && 'bg-brand-purple/10 text-brand-purple ring-1 ring-brand-purple/20',
+          )}
+        >
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted">
+            <Icon className="size-5" />
+          </span>
+          <span className="min-w-0">
+            <span className="block font-semibold">{label}</span>
+            <span className="block truncate text-xs text-muted-foreground">{description}</span>
+          </span>
+        </NavLink>
+      ))}
+    </nav>
+  );
+}

@@ -1,0 +1,10 @@
+{
+  "password_min_length": 11,
+  "password_required_characters": "abcdefghijklmnopqrstuvwxyz:ABCDEFGHIJKLMNOPQRSTUVWXYZ:0123456789:!@#$%^&*()_+-=[]{};'\\\\:\"|<>?,./`~",
+  "security_update_password_require_reauthentication": true,
+  "mailer_secure_email_change_enabled": true,
+  "security_manual_linking_enabled": true,
+  "external_kakao_email_optional": false,
+  "refresh_token_rotation_enabled": true,
+  "security_refresh_token_reuse_interval": 0
+}
