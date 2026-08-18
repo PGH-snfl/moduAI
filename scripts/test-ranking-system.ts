@@ -79,7 +79,7 @@ async function testRankingSystem() {
                 passed++; // Not critical failure
             }
         }
-    } catch (err) {
+    } catch {
         console.log('   ℹ️  RLS 정보 확인 불가 - 스킵');
     }
 

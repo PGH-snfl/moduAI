@@ -262,7 +262,7 @@ export const ReportPage = () => {
     const { data: newsData, isLoading: isNewsLoading } = useQuery({
         queryKey: ['report-news'],
         queryFn: async () => {
-            const { data, error } = await supabase.from('news').select('*').order('published_date', { ascending: false }).order('created_at', { ascending: false });
+            const { data, error } = await supabase.from('news').select('*').eq('is_published', true).eq('is_deleted', false).order('published_date', { ascending: false }).order('created_at', { ascending: false });
             if (error) throw error;
             return data as unknown as NewsItem[];
         }

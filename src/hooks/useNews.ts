@@ -18,6 +18,8 @@ export function useNews(category: NewsCategory = null) {
             let query = supabase
                 .from('news')
                 .select('*')
+                .eq('is_published', true)
+                .eq('is_deleted', false)
                 .order('published_date', { ascending: false, nullsFirst: false })
                 .order('created_at', { ascending: false })
                 .limit(20);
@@ -51,6 +53,8 @@ export function useLatestNews() {
             const { data, error } = await supabase
                 .from('news')
                 .select('*')
+                .eq('is_published', true)
+                .eq('is_deleted', false)
                 .order('published_date', { ascending: false, nullsFirst: false })
                 .order('created_at', { ascending: false })
                 .limit(5);
@@ -81,6 +85,8 @@ export function useNewsItem(id: string | undefined) {
                 .from('news')
                 .select('*')
                 .eq('id', id)
+                .eq('is_published', true)
+                .eq('is_deleted', false)
                 .single();
             
             if (error) {

@@ -20,6 +20,7 @@ import { LegalPage } from '@/pages/LegalPage'
 import { AdminToolEditPage } from '@/pages/AdminToolEditPage'
 import { AdminHomeContentPage } from '@/pages/AdminHomeContentPage'
 import { AdminOverviewPage } from '@/pages/AdminOverviewPage'
+import { AdminNewsPage } from '@/pages/AdminNewsPage'
 import { AdminSecurityPage } from '@/pages/AdminSecurityPage'
 import { AdminLayout } from '@/components/admin/AdminLayout'
 import { ResetPasswordPage } from '@/pages/ResetPasswordPage'
@@ -77,6 +78,7 @@ function App() {
                   <Route path="tools" element={<AdminDashboardPage />} />
                   <Route path="tools/:id/edit" element={<AdminToolEditPage />} />
                   <Route path="content" element={<AdminHomeContentPage />} />
+                  <Route path="news" element={<AdminNewsPage />} />
                   <Route path="security" element={<AdminSecurityPage />} />
                 </Route>
               </Routes>

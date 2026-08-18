@@ -72,7 +72,7 @@ export async function fetchGitHubStars(owner: string, repo: string): Promise<num
  */
 export function parseGitHubUrl(url: string): { owner: string; repo: string } | null {
   try {
-    const match = url.match(/github\.com\/([^\/]+)\/([^\/]+)/);
+    const match = url.match(/github\.com\/([^/]+)\/([^/]+)/);
     if (match) {
       return { owner: match[1], repo: match[2].replace(/\.git$/, '') };
     }
@@ -215,7 +215,7 @@ export function calculateComprehensiveRanking(
 export async function fetchGoogleTrends(keywords: string[]): Promise<Record<string, number>> {
   // TODO: Python 서버 구축 후 구현
   // pytrends는 Python 라이브러리이므로 별도 서버 또는 Edge Function 필요
-  console.log('Google Trends collection not yet implemented');
+  console.log('Google Trends collection not yet implemented', { keywords });
   return {};
 }
 
@@ -223,8 +223,8 @@ export async function fetchGoogleTrends(keywords: string[]): Promise<Record<stri
  * TODO: Phase 3 - SimilarWeb API
  * 유료 API - 향후 도입 검토
  */
-export async function fetchSimilarWebData(domain: string): Promise<any> {
+export async function fetchSimilarWebData(domain: string): Promise<unknown> {
   // TODO: SimilarWeb API 키 필요
-  console.log('SimilarWeb API not yet implemented');
+  console.log('SimilarWeb API not yet implemented', { domain });
   return null;
 }

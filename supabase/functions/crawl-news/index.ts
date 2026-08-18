@@ -20,6 +20,8 @@ type NewsRow = {
   badge: string | null
   category: 'domestic' | 'global'
   summary: string | null
+  is_auto_collected: boolean
+  updated_at: string
 }
 
 function decodeXml(value: string): string {
@@ -170,13 +172,20 @@ Deno.serve(async req => {
             badge: index === 0 ? 'New' : null,
             category: feed.category,
             summary: await generateSummary(item, openaiKey),
+            is_auto_collected: true,
+            updated_at: new Date().toISOString(),
           })
         }
 
         if (rows.length) {
-          const { error } = await db.from('news').upsert(rows, { onConflict: 'url' })
+          const { data: lockedRows, error: lockedError } = await db.from('news').select('url').in('url', rows.map(row => row.url)).eq('is_manually_managed', true)
+          if (lockedError) throw lockedError
+          const lockedUrls = new Set((lockedRows ?? []).map(row => row.url))
+          const writableRows = rows.filter(row => !lockedUrls.has(row.url))
+          const { error } = writableRows.length ? await db.from('news').upsert(writableRows, { onConflict: 'url' }) : { error: null }
           if (error) throw error
-          saved += rows.length
+          saved += writableRows.length
+          skipped += rows.length - writableRows.length
         }
       } catch (error) {
         const message = `${feed.source}: ${error instanceof Error ? error.message : String(error)}`

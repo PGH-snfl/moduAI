@@ -293,7 +293,13 @@ export interface Database {
           published_date: string | null
           badge: string | null
           category: 'domestic' | 'global'
+          summary: string | null
+          is_published: boolean
+          is_auto_collected: boolean
+          is_manually_managed: boolean
+          is_deleted: boolean
           created_at: string
+          updated_at: string
         }
         Insert: {
           id?: string
@@ -303,7 +309,13 @@ export interface Database {
           published_date?: string | null
           badge?: string | null
           category: 'domestic' | 'global'
+          summary?: string | null
+          is_published?: boolean
+          is_auto_collected?: boolean
+          is_manually_managed?: boolean
+          is_deleted?: boolean
           created_at?: string
+          updated_at?: string
         }
         Update: {
           id?: string
@@ -313,7 +325,13 @@ export interface Database {
           published_date?: string | null
           badge?: string | null
           category?: 'domestic' | 'global'
+          summary?: string | null
+          is_published?: boolean
+          is_auto_collected?: boolean
+          is_manually_managed?: boolean
+          is_deleted?: boolean
           created_at?: string
+          updated_at?: string
         }
         Relationships: []
       }

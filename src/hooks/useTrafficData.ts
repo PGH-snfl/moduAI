@@ -1,6 +1,9 @@
 import { useMemo, useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import type { Tool } from '@/hooks/useTools';
+import type { Database } from '@/types/supabase';
+
+type TrafficStatRow = Database['public']['Tables']['traffic_stats']['Row'];
 
 export interface TrafficPoint {
     name: string;
@@ -62,7 +65,7 @@ export const useTrafficData = (tool: Tool | null) => {
                 
                 // Create a map of existing data
                 const dataMap = new Map();
-                weeklyData?.forEach((record: any) => {
+                weeklyData?.forEach((record: TrafficStatRow) => {
                     dataMap.set(record.date, record.visitors || 0);
                 });
 
@@ -89,7 +92,7 @@ export const useTrafficData = (tool: Tool | null) => {
 
                 // Aggregate monthly data
                 const monthlyMap = new Map();
-                monthlyData?.forEach((record: any) => {
+                monthlyData?.forEach((record: Pick<TrafficStatRow, 'date' | 'visitors'>) => {
                     const d = new Date(record.date);
                     const monthKey = `${d.getFullYear().toString().slice(2)}.${String(d.getMonth() + 1).padStart(2, '0')}`;
                     const current = monthlyMap.get(monthKey) || 0;

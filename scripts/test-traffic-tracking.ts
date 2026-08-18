@@ -54,10 +54,8 @@ async function testTrafficTracking() {
         return;
     }
 
-    let operation = '';
     if (existing) {
         // Update existing record
-        operation = 'update';
         const { error: updateError } = await supabase
             .from('traffic_stats')
             .update({
@@ -75,7 +73,6 @@ async function testTrafficTracking() {
         console.log('✅ Traffic record updated successfully');
     } else {
         // Insert new record
-        operation = 'insert';
         const { error: insertError } = await supabase
             .from('traffic_stats')
             .insert({

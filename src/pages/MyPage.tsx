@@ -27,6 +27,7 @@ import type { Database, Json } from '@/types/supabase';
 import type { Provider, UserIdentity } from '@supabase/supabase-js';
 
 type UserProfile = Database['public']['Tables']['user_profiles']['Row'];
+type FavoriteWithTool = Database['public']['Tables']['user_favorites']['Row'] & { tools?: Tool | null };
 
 interface UserActivity {
   id: string;
@@ -143,7 +144,7 @@ export function MyPage() {
         setActivities(typedActivities);
 
         // Generate recommendations based on favorites and activities
-        await generateRecommendations(typedActivities, favorites || []);
+        await generateRecommendations(typedActivities, (favorites || []) as unknown as FavoriteWithTool[]);
       } catch (error) {
         console.error('Error fetching user data:', error);
       }
@@ -172,9 +173,9 @@ export function MyPage() {
   };
 
   // Generate AI tool recommendations
-  const generateRecommendations = async (userActivities: UserActivity[], userFavorites: any[]) => {
+  const generateRecommendations = async (userActivities: UserActivity[], userFavorites: FavoriteWithTool[]) => {
     try {
-      const favoriteIds = userFavorites.map((f: any) => f.tool_id);
+      const favoriteIds = userFavorites.map(f => f.tool_id);
       const activityToolIds = userActivities.map(a => a.tool_id).filter(Boolean);
       const excludeIds = [...new Set([...favoriteIds, ...activityToolIds])];
 
@@ -206,7 +207,11 @@ export function MyPage() {
     };
 
     const categoryCount: Record<string, number> = {};
-    [...activities, ...(favorites || [])].forEach((item: any) => {
+    const interestItems: Array<{ tools?: Tool | null }> = [
+      ...activities,
+      ...((favorites || []) as unknown as FavoriteWithTool[]),
+    ];
+    interestItems.forEach(item => {
       const tool = item.tools;
       if (tool?.description) {
         const hashtags = tool.description.match(/#[\w가-힣]+/g) || [];
@@ -436,7 +441,7 @@ export function MyPage() {
               <div className="text-center py-12 text-muted-foreground">로딩 중...</div>
             ) : favorites && favorites.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {favorites.map((favorite: any) => (
+                {(favorites as unknown as FavoriteWithTool[]).map(favorite => (
                   <Card key={favorite.id} className="group hover:shadow-lg transition-all cursor-pointer"
                     onClick={() => navigate(`/tool/${favorite.tool_id}`)}>
                     <CardHeader className="pb-3">

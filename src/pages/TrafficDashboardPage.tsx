@@ -397,7 +397,7 @@ export function TrafficDashboardPage() {
                             </CardHeader>
                             <CardContent>
                                 <div className="space-y-3">
-                                    {stats.trendingTools.map((tool, idx) => (
+                                    {stats.trendingTools.map((tool) => (
                                         <div key={tool.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
                                             <div className="flex items-center gap-3">
                                                 <div className="size-8 rounded-full bg-green-500/10 flex items-center justify-center">
@@ -436,7 +436,7 @@ export function TrafficDashboardPage() {
                         </CardHeader>
                         <CardContent>
                             <div className="space-y-4">
-                                {stats.categoryDistribution.map((cat, idx) => (
+                                {stats.categoryDistribution.map((cat) => (
                                     <div key={cat.category} className="flex items-center justify-between">
                                         <div className="flex-1">
                                             <p className="font-medium">{cat.category}</p>

@@ -17,7 +17,7 @@ console.log('Testing connection to:', supabaseUrl);
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 async function test() {
-    const { data, error, count } = await supabase
+    const { error, count } = await supabase
         .from('tools')
         .select('*', { count: 'exact', head: true });
 
