@@ -1,35 +1,41 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { BrowserRouter, Routes, Route, useLocation, Navigate } from 'react-router-dom'
 import { Layout } from './components/layout/Layout'
-import { HomePage } from '@/pages/HomePage'
 import { ThemeProvider } from './components/theme-provider'
 import { AuthProvider } from '@/contexts/AuthContext'
+import { lazy, Suspense, useEffect } from 'react'
+import { Loader2 } from 'lucide-react'
 
 // Create a client
 const queryClient = new QueryClient()
 
-import { ToolDetailPage } from '@/pages/ToolDetailPage'
-import { ToolsPage } from '@/pages/ToolsPage'
-import { SubmitPage } from '@/pages/SubmitPage'
-import { ReportPage } from '@/pages/ReportPage'
-import { MyPage } from '@/pages/MyPage'
-import { LoginPage } from '@/pages/LoginPage'
-import { AdminDashboardPage } from '@/pages/AdminDashboardPage'
 import { AdminRoute } from '@/components/auth/AdminRoute'
-import { LegalPage } from '@/pages/LegalPage'
-import { AdminToolEditPage } from '@/pages/AdminToolEditPage'
-import { AdminHomeContentPage } from '@/pages/AdminHomeContentPage'
-import { AdminOverviewPage } from '@/pages/AdminOverviewPage'
-import { AdminNewsPage } from '@/pages/AdminNewsPage'
-import { AdminSecurityPage } from '@/pages/AdminSecurityPage'
-import { AdminLayout } from '@/components/admin/AdminLayout'
-import { ResetPasswordPage } from '@/pages/ResetPasswordPage'
-import { CompleteSignupPage } from '@/pages/CompleteSignupPage'
 import { SocialSignupGuard } from '@/components/auth/SocialSignupGuard'
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute'
 import { useAnalytics } from "./hooks/useAnalytics";
-import { useEffect } from "react";
 import { recordAnalytics } from '@/lib/analytics';
+
+const HomePage = lazy(() => import('@/pages/HomePage').then(module => ({ default: module.HomePage })))
+const ToolsPage = lazy(() => import('@/pages/ToolsPage').then(module => ({ default: module.ToolsPage })))
+const ToolDetailPage = lazy(() => import('@/pages/ToolDetailPage').then(module => ({ default: module.ToolDetailPage })))
+const SubmitPage = lazy(() => import('@/pages/SubmitPage').then(module => ({ default: module.SubmitPage })))
+const ReportPage = lazy(() => import('@/pages/ReportPage').then(module => ({ default: module.ReportPage })))
+const MyPage = lazy(() => import('@/pages/MyPage').then(module => ({ default: module.MyPage })))
+const LoginPage = lazy(() => import('@/pages/LoginPage').then(module => ({ default: module.LoginPage })))
+const LegalPage = lazy(() => import('@/pages/LegalPage').then(module => ({ default: module.LegalPage })))
+const ResetPasswordPage = lazy(() => import('@/pages/ResetPasswordPage').then(module => ({ default: module.ResetPasswordPage })))
+const CompleteSignupPage = lazy(() => import('@/pages/CompleteSignupPage').then(module => ({ default: module.CompleteSignupPage })))
+const AdminLayout = lazy(() => import('@/components/admin/AdminLayout').then(module => ({ default: module.AdminLayout })))
+const AdminOverviewPage = lazy(() => import('@/pages/AdminOverviewPage').then(module => ({ default: module.AdminOverviewPage })))
+const AdminDashboardPage = lazy(() => import('@/pages/AdminDashboardPage').then(module => ({ default: module.AdminDashboardPage })))
+const AdminToolEditPage = lazy(() => import('@/pages/AdminToolEditPage').then(module => ({ default: module.AdminToolEditPage })))
+const AdminHomeContentPage = lazy(() => import('@/pages/AdminHomeContentPage').then(module => ({ default: module.AdminHomeContentPage })))
+const AdminNewsPage = lazy(() => import('@/pages/AdminNewsPage').then(module => ({ default: module.AdminNewsPage })))
+const AdminSecurityPage = lazy(() => import('@/pages/AdminSecurityPage').then(module => ({ default: module.AdminSecurityPage })))
+
+function PageFallback() {
+  return <div className="flex min-h-[55vh] items-center justify-center" role="status" aria-label="화면 불러오는 중"><Loader2 className="size-8 animate-spin text-brand-purple" /></div>
+}
 
 const AnalyticsTracker = () => {
   const location = useLocation();
@@ -53,6 +59,7 @@ function App() {
             <AnalyticsTracker />
             <Layout>
               <SocialSignupGuard>
+              <Suspense fallback={<PageFallback />}>
               <Routes>
                 <Route path="/" element={<HomePage />} />
                 <Route path="/tools" element={<ToolsPage />} />
@@ -82,6 +89,7 @@ function App() {
                   <Route path="security" element={<AdminSecurityPage />} />
                 </Route>
               </Routes>
+              </Suspense>
               </SocialSignupGuard>
             </Layout>
           </BrowserRouter>
