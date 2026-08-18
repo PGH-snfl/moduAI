@@ -59,7 +59,7 @@ export function AdminHomeContentPage() {
         const { error } = await supabase.from('featured_promotions').update({ is_active: publish, updated_at: new Date().toISOString() }).eq('id', id);
         if (error) throw error;
       } else if (tab === 'works') {
-        const { error } = await supabase.from('featured_works').update({ status: publish ? 'approved' : 'draft', updated_at: new Date().toISOString() }).eq('id', id);
+        const { error } = await supabase.from('featured_works').update({ status: publish ? 'approved' : 'draft', is_auto_managed: false, updated_at: new Date().toISOString() }).eq('id', id);
         if (error) throw error;
       } else {
         const { error } = await supabase.from('ai_technology_trends').update({ is_active: publish, updated_at: new Date().toISOString() }).eq('id', id);
@@ -71,6 +71,15 @@ export function AdminHomeContentPage() {
       setMessage(variables.publish ? '콘텐츠를 승인하고 메인 노출 대상으로 등록했습니다.' : '메인 노출을 중지하고 후보로 이동했습니다.');
     },
     onError: error => setMessage(`상태 변경 실패: ${error.message}`),
+  });
+
+  const restoreAutomation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('featured_works').update({ is_auto_managed: true, updated_at: new Date().toISOString() }).eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: async () => { await refresh(); setMessage('자동 관리로 전환했습니다. 다음 일일 수집부터 조회수 순위에 따라 노출 상태가 결정됩니다.'); },
+    onError: error => setMessage(`자동 관리 전환 실패: ${error.message}`),
   });
 
   const refresh = async () => {
@@ -119,8 +128,8 @@ export function AdminHomeContentPage() {
             const active = 'is_active' in record ? record.is_active : record.status === 'approved';
             return <article key={record.id} className="rounded-xl border bg-card p-4">
               <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0"><p className="break-words font-semibold">{title}</p><div className="mt-2 flex flex-wrap gap-2"><Badge variant={active ? 'secondary' : 'outline'}>{active ? '메인 노출 중' : '승인 대기'}</Badge><Badge variant="outline">클릭 {record.click_count.toLocaleString()}</Badge></div></div>
-                <div className="flex shrink-0 gap-2"><Button size="sm" variant={view === 'candidates' ? 'default' : 'outline'} className="gap-1" disabled={changeVisibility.isPending} onClick={() => changeVisibility.mutate({ id: record.id, publish: view === 'candidates' })}>{view === 'candidates' ? <><CheckCircle2 className="size-4" />승인</> : '노출 중지'}</Button><Button size="icon" variant="ghost" title="삭제" disabled={remove.isPending} onClick={() => { if (confirm(`"${title}" 콘텐츠를 삭제하시겠습니까?`)) remove.mutate(record.id); }}><Trash2 className="size-4 text-red-500" /></Button></div>
+                <div className="min-w-0"><p className="break-words font-semibold">{title}</p><div className="mt-2 flex flex-wrap gap-2"><Badge variant={active ? 'secondary' : 'outline'}>{active ? '메인 노출 중' : '승인 대기'}</Badge>{'is_auto_managed' in record && <Badge variant="outline">{record.is_auto_managed ? '매일 자동 교체' : '관리자 수동 관리'}</Badge>}<Badge variant="outline">클릭 {record.click_count.toLocaleString()}</Badge></div></div>
+                <div className="flex shrink-0 flex-wrap justify-end gap-2">{'is_auto_managed' in record && !record.is_auto_managed && <Button size="sm" variant="outline" disabled={restoreAutomation.isPending} onClick={() => restoreAutomation.mutate(record.id)}>자동 관리 전환</Button>}<Button size="sm" variant={view === 'candidates' ? 'default' : 'outline'} className="gap-1" disabled={changeVisibility.isPending} onClick={() => changeVisibility.mutate({ id: record.id, publish: view === 'candidates' })}>{view === 'candidates' ? <><CheckCircle2 className="size-4" />승인</> : '노출 중지'}</Button><Button size="icon" variant="ghost" title="삭제" disabled={remove.isPending} onClick={() => { if (confirm(`"${title}" 콘텐츠를 삭제하시겠습니까?`)) remove.mutate(record.id); }}><Trash2 className="size-4 text-red-500" /></Button></div>
               </div>
               {'description' in record && <p className="mt-3 line-clamp-2 text-sm text-muted-foreground">{record.description}</p>}
               {'summary' in record && <p className="mt-3 line-clamp-2 text-sm text-muted-foreground">{record.summary}</p>}

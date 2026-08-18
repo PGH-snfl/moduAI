@@ -68,8 +68,13 @@ export function MyPage() {
 
     const params = new URLSearchParams(window.location.search);
     if (params.get('identity_linked') === '1') {
+      const linkedProvider = params.get('provider');
       setIdentityMessage({ type: 'success', text: '로그인 계정이 연결되었습니다.' });
+      if (linkedProvider === 'google' || linkedProvider === 'kakao') {
+        void supabase.rpc('record_auth_audit_event', { p_event_type: 'identity_linked', p_provider: linkedProvider, p_metadata: {} });
+      }
       params.delete('identity_linked');
+      params.delete('provider');
       const query = params.toString();
       window.history.replaceState({}, '', `${window.location.pathname}${query ? `?${query}` : ''}${window.location.hash}`);
     }
@@ -78,7 +83,7 @@ export function MyPage() {
   const linkIdentity = async (provider: 'google' | 'kakao') => {
     setIdentityMessage(null);
     setIdentityLoading(provider);
-    const redirectTo = `${window.location.origin}${window.location.pathname}?identity_linked=1`;
+    const redirectTo = `${window.location.origin}${window.location.pathname}?identity_linked=1&provider=${provider}`;
     const { error } = await supabase.auth.linkIdentity({ provider, options: { redirectTo } });
     if (error) {
       const alreadyLinked = error.message.toLowerCase().includes('already');

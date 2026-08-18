@@ -183,13 +183,25 @@ export interface Database {
         Update: { id?: number; session_id?: string; user_id?: string | null; event_type?: 'page_view' | 'tool_click' | 'search' | 'filter' | 'favorite_add' | 'favorite_remove' | 'content_click'; path?: string | null; metadata?: Json; created_at?: string }
         Relationships: []
       }
+      external_review_sources: {
+        Row: { id: string; tool_id: string; provider: 'trustpilot' | 'g2' | 'product_hunt' | 'app_store' | 'google_play' | 'other'; source_name: string; source_url: string; external_product_id: string | null; average_rating: number | null; review_count: number | null; rating_scale: number; analysis_summary: string | null; pros_summary: string[]; cons_summary: string[]; analysis_sample_size: number | null; analyzed_at: string | null; synced_at: string | null; is_active: boolean; created_at: string; updated_at: string }
+        Insert: { id?: string; tool_id: string; provider: 'trustpilot' | 'g2' | 'product_hunt' | 'app_store' | 'google_play' | 'other'; source_name: string; source_url: string; external_product_id?: string | null; average_rating?: number | null; review_count?: number | null; rating_scale?: number; analysis_summary?: string | null; pros_summary?: string[]; cons_summary?: string[]; analysis_sample_size?: number | null; analyzed_at?: string | null; synced_at?: string | null; is_active?: boolean; created_at?: string; updated_at?: string }
+        Update: { id?: string; tool_id?: string; provider?: 'trustpilot' | 'g2' | 'product_hunt' | 'app_store' | 'google_play' | 'other'; source_name?: string; source_url?: string; external_product_id?: string | null; average_rating?: number | null; review_count?: number | null; rating_scale?: number; analysis_summary?: string | null; pros_summary?: string[]; cons_summary?: string[]; analysis_sample_size?: number | null; analyzed_at?: string | null; synced_at?: string | null; is_active?: boolean; created_at?: string; updated_at?: string }
+        Relationships: []
+      }
+      external_reviews: {
+        Row: { id: string; source_id: string; external_review_id: string; rating: number | null; title: string | null; excerpt: string | null; reviewer_name: string | null; review_url: string | null; published_at: string | null; is_verified: boolean; is_featured: boolean; created_at: string; updated_at: string }
+        Insert: { id?: string; source_id: string; external_review_id: string; rating?: number | null; title?: string | null; excerpt?: string | null; reviewer_name?: string | null; review_url?: string | null; published_at?: string | null; is_verified?: boolean; is_featured?: boolean; created_at?: string; updated_at?: string }
+        Update: { id?: string; source_id?: string; external_review_id?: string; rating?: number | null; title?: string | null; excerpt?: string | null; reviewer_name?: string | null; review_url?: string | null; published_at?: string | null; is_verified?: boolean; is_featured?: boolean; created_at?: string; updated_at?: string }
+        Relationships: []
+      }
       featured_works: {
         Row: {
           id: string; platform: 'YouTube' | 'Instagram' | 'TikTok' | 'Other'; external_id: string | null
           title: string; creator_name: string; description: string; thumbnail_url: string; content_url: string
           view_count: number | null; like_count: number | null; comment_count: number | null; published_at: string | null
           ai_relevance_score: number | null; popularity_score: number; status: 'draft' | 'approved' | 'rejected'
-          featured_from: string; featured_until: string | null; display_order: number; click_count: number
+          featured_from: string; featured_until: string | null; display_order: number; click_count: number; is_auto_managed: boolean
           created_at: string; updated_at: string
         }
         Insert: {
@@ -197,7 +209,7 @@ export interface Database {
           title: string; creator_name: string; description: string; thumbnail_url: string; content_url: string
           view_count?: number | null; like_count?: number | null; comment_count?: number | null; published_at?: string | null
           ai_relevance_score?: number | null; popularity_score?: number; status?: 'draft' | 'approved' | 'rejected'
-          featured_from?: string; featured_until?: string | null; display_order?: number; click_count?: number
+          featured_from?: string; featured_until?: string | null; display_order?: number; click_count?: number; is_auto_managed?: boolean
           created_at?: string; updated_at?: string
         }
         Update: {
@@ -205,7 +217,7 @@ export interface Database {
           title?: string; creator_name?: string; description?: string; thumbnail_url?: string; content_url?: string
           view_count?: number | null; like_count?: number | null; comment_count?: number | null; published_at?: string | null
           ai_relevance_score?: number | null; popularity_score?: number; status?: 'draft' | 'approved' | 'rejected'
-          featured_from?: string; featured_until?: string | null; display_order?: number; click_count?: number
+          featured_from?: string; featured_until?: string | null; display_order?: number; click_count?: number; is_auto_managed?: boolean
           created_at?: string; updated_at?: string
         }
         Relationships: []
@@ -580,6 +592,18 @@ export interface Database {
         }
         Relationships: []
       }
+      user_consents: {
+        Row: { id: number; user_id: string; document_type: 'terms' | 'privacy'; document_version: string; acceptance_method: 'email_signup' | 'social_onboarding'; provider: 'email' | 'google' | 'kakao' | 'other'; accepted_at: string }
+        Insert: { id?: number; user_id: string; document_type: 'terms' | 'privacy'; document_version: string; acceptance_method: 'email_signup' | 'social_onboarding'; provider: 'email' | 'google' | 'kakao' | 'other'; accepted_at?: string }
+        Update: { id?: number; user_id?: string; document_type?: 'terms' | 'privacy'; document_version?: string; acceptance_method?: 'email_signup' | 'social_onboarding'; provider?: 'email' | 'google' | 'kakao' | 'other'; accepted_at?: string }
+        Relationships: []
+      }
+      auth_audit_events: {
+        Row: { id: number; user_id: string | null; event_type: 'sign_in' | 'sign_out' | 'signup_completed' | 'password_changed' | 'identity_linked'; provider: 'email' | 'google' | 'kakao' | 'other'; success: boolean; metadata: Json; created_at: string }
+        Insert: { id?: number; user_id?: string | null; event_type: 'sign_in' | 'sign_out' | 'signup_completed' | 'password_changed' | 'identity_linked'; provider?: 'email' | 'google' | 'kakao' | 'other'; success?: boolean; metadata?: Json; created_at?: string }
+        Update: { id?: number; user_id?: string | null; event_type?: 'sign_in' | 'sign_out' | 'signup_completed' | 'password_changed' | 'identity_linked'; provider?: 'email' | 'google' | 'kakao' | 'other'; success?: boolean; metadata?: Json; created_at?: string }
+        Relationships: []
+      }
       user_activities: {
         Row: {
           id: string
@@ -684,6 +708,8 @@ export interface Database {
         Args: { p_pending_tool_id: string; p_tool_data?: Json }
         Returns: Database['public']['Tables']['tools']['Row']
       }
+      record_auth_audit_event: { Args: { p_event_type: string; p_provider?: string | null; p_metadata?: Json }; Returns: undefined }
+      complete_social_onboarding: { Args: { p_display_name: string; p_avatar_url: string | null; p_terms_version: string; p_privacy_version: string }; Returns: undefined }
     }
     Enums: Record<string, never>
     CompositeTypes: Record<string, never>

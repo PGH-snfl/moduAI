@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Star, ExternalLink, Share2, Check } from 'lucide-react';
 import { useState } from 'react';
 import { ReviewsList } from '@/components/reviews/ReviewsList';
+import { ExternalReviewsSection } from '@/components/reviews/ExternalReviewsSection';
 import { FavoriteButton } from '@/components/tools/FavoriteButton';
 import { Helmet, HelmetProvider } from 'react-helmet-async';
 import { useTrafficTracking } from '@/hooks/useTrafficTracking';
@@ -165,8 +166,11 @@ export function ToolDetailPage() {
                             </section>
                         )}
 
+                        <ExternalReviewsSection toolId={tool.id} />
+
                         <section>
-                            <h2 className="text-2xl font-bold mb-4">사용자 리뷰</h2>
+                            <h2 className="text-2xl font-bold mb-1">모두AI 사용자 리뷰</h2>
+                            <p className="mb-4 text-sm text-muted-foreground">모두AI에 로그인한 사용자가 서비스 안에서 직접 작성한 평가입니다.</p>
                             <div className="border rounded-xl p-6 bg-card/50">
                                 <ReviewsList toolId={tool.id} />
                             </div>

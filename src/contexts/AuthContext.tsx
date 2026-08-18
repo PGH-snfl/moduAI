@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { supabase } from '@/lib/supabaseClient';
+import { PRIVACY_VERSION, TERMS_VERSION } from '@/lib/legal';
 import type { User, Session, Provider } from '@supabase/supabase-js';
 
 interface AuthContextType {
@@ -32,10 +33,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
       setIsLoading(false);
+      if (event === 'SIGNED_IN' && session?.user) {
+        void supabase.rpc('record_auth_audit_event', {
+          p_event_type: 'sign_in',
+          p_provider: session.user.app_metadata?.provider || 'email',
+          p_metadata: { source: 'auth_state_change' },
+        });
+      }
     });
 
     return () => subscription.unsubscribe();
@@ -50,7 +58,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { full_name: displayName.trim(), onboarding_completed: true } },
+      options: {
+        data: {
+          full_name: displayName.trim(),
+          onboarding_completed: true,
+          terms_accepted: true,
+          privacy_accepted: true,
+          terms_version: TERMS_VERSION,
+          privacy_version: PRIVACY_VERSION,
+        },
+      },
     });
     if (error) throw error;
     return { needsEmailConfirmation: !data.session };
@@ -82,14 +99,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const updatePassword = async (password: string, nonce?: string) => {
     const { error } = await supabase.auth.updateUser({ password, ...(nonce ? { nonce } : {}) });
     if (error) throw error;
+    await supabase.rpc('record_auth_audit_event', {
+      p_event_type: 'password_changed',
+      p_provider: user?.app_metadata?.provider || 'email',
+      p_metadata: { source: 'account_security' },
+    });
   };
 
   const signOut = async () => {
+    if (user) await supabase.rpc('record_auth_audit_event', { p_event_type: 'sign_out', p_provider: user.app_metadata?.provider || 'email', p_metadata: {} });
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
   };
 
   const signOutAll = async () => {
+    if (user) await supabase.rpc('record_auth_audit_event', { p_event_type: 'sign_out', p_provider: user.app_metadata?.provider || 'email', p_metadata: { scope: 'global' } });
     const { error } = await supabase.auth.signOut({ scope: 'global' });
     if (error) throw error;
   };

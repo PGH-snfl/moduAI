@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { useAuth } from '@/contexts/AuthContext';
 import { Chrome, Eye, EyeOff, Loader2, LockKeyhole, MessageCircle } from 'lucide-react';
 import { isStrongPassword, PASSWORD_MIN_LENGTH, PASSWORD_REQUIREMENT_TEXT } from '@/lib/password';
+import { Checkbox } from '@/components/ui/checkbox';
 
 type Mode = 'login' | 'signup';
 
@@ -19,6 +20,8 @@ export function LoginPage() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [privacyAccepted, setPrivacyAccepted] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState<string | null>(null);
   const [error, setError] = useState('');
@@ -44,6 +47,7 @@ export function LoginPage() {
     if (mode === 'signup' && !isStrongPassword(password)) return setError(PASSWORD_REQUIREMENT_TEXT);
     if (mode === 'signup' && password !== confirmPassword) return setError('비밀번호 확인이 일치하지 않습니다.');
     if (mode === 'signup' && !displayName.trim()) return setError('표시할 이름을 입력해주세요.');
+    if (mode === 'signup' && (!termsAccepted || !privacyAccepted)) return setError('필수 약관에 모두 동의해주세요.');
     try {
       setLoading('password');
       if (mode === 'login') {
@@ -66,7 +70,7 @@ export function LoginPage() {
     setError('');
     try {
       setLoading(provider);
-      await signInWithProvider(provider, `/complete-signup?returnTo=${encodeURIComponent(safeReturnTo)}`);
+      await signInWithProvider(provider, `/complete-signup?provider=${provider}&returnTo=${encodeURIComponent(safeReturnTo)}`);
     } catch (value) {
       setError(friendlyError(value));
       setLoading(null);
@@ -99,6 +103,10 @@ export function LoginPage() {
             {mode === 'signup' && <p className="text-xs text-muted-foreground">{PASSWORD_REQUIREMENT_TEXT}</p>}
           </div>
           {mode === 'signup' && <div className="grid gap-2"><Label htmlFor="confirm-password">비밀번호 확인</Label><Input id="confirm-password" type={showPassword ? 'text' : 'password'} autoComplete="new-password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} minLength={PASSWORD_MIN_LENGTH} required /></div>}
+          {mode === 'signup' && <div className="space-y-3 rounded-xl border p-4">
+            <label className="flex cursor-pointer items-start gap-3 text-sm"><Checkbox checked={termsAccepted} onCheckedChange={value => setTermsAccepted(value === true)} /><span><strong>[필수]</strong> <Link to="/terms" target="_blank" className="underline">이용약관</Link>에 동의합니다.</span></label>
+            <label className="flex cursor-pointer items-start gap-3 text-sm"><Checkbox checked={privacyAccepted} onCheckedChange={value => setPrivacyAccepted(value === true)} /><span><strong>[필수]</strong> <Link to="/privacy" target="_blank" className="underline">개인정보처리방침</Link>에 동의합니다.</span></label>
+          </div>}
           {error && <p role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300">{error}</p>}
           {notice && <p role="status" className="rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-700 dark:border-green-900 dark:bg-green-950/30 dark:text-green-300">{notice}</p>}
           <Button type="submit" disabled={Boolean(loading)} className="h-11 w-full">{loading === 'password' && <Loader2 className="mr-2 size-4 animate-spin" />}{mode === 'login' ? '로그인' : '계정 만들기'}</Button>
@@ -109,7 +117,7 @@ export function LoginPage() {
           <Button type="button" variant="outline" disabled={Boolean(loading)} onClick={() => socialLogin('google')} className="h-11">{loading === 'google' ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Chrome className="mr-2 size-4" />}Google</Button>
           <Button type="button" disabled={Boolean(loading)} onClick={() => socialLogin('kakao')} className="h-11 bg-[#FEE500] text-[#191919] hover:bg-[#F5DC00]">{loading === 'kakao' ? <Loader2 className="mr-2 size-4 animate-spin" /> : <MessageCircle className="mr-2 size-4" />}카카오</Button>
         </div>
-        <p className="mt-6 text-center text-xs leading-5 text-muted-foreground">계속하면 <Link to="/terms" className="underline">이용약관</Link> 및 <Link to="/privacy" className="underline">개인정보처리방침</Link>에 동의하게 됩니다.</p>
+        <p className="mt-6 text-center text-xs leading-5 text-muted-foreground">소셜 로그인 후 서비스 가입 단계에서 이용약관과 개인정보처리방침에 동의합니다.</p>
         <Button variant="ghost" onClick={() => navigate('/tools')} className="mt-3 w-full">← 둘러보기로 돌아가기</Button>
       </div>
     </main>

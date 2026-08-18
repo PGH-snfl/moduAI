@@ -46,7 +46,7 @@ async function main() {
       email: normalEmail,
       password,
       email_confirm: true,
-      user_metadata: { full_name: 'RLS 일반 테스트', onboarding_completed: true },
+      user_metadata: { full_name: 'RLS 일반 테스트', onboarding_completed: true, terms_accepted: true, privacy_accepted: true, terms_version: 'test', privacy_version: 'test' },
     });
     if (normalCreated.error) throw normalCreated.error;
     assert(normalCreated.data.user, 'Normal test user was not created.');
@@ -56,7 +56,7 @@ async function main() {
       email: adminEmail,
       password,
       email_confirm: true,
-      user_metadata: { full_name: 'RLS 관리자 테스트', onboarding_completed: true },
+      user_metadata: { full_name: 'RLS 관리자 테스트', onboarding_completed: true, terms_accepted: true, privacy_accepted: true, terms_version: 'test', privacy_version: 'test' },
       app_metadata: { role: 'admin' },
     });
     if (adminCreated.error) throw adminCreated.error;
@@ -79,6 +79,27 @@ async function main() {
     const otherProfile = await normalClient.from('user_profiles').select('id').eq('id', adminCreated.data.user.id);
     if (otherProfile.error) throw otherProfile.error;
     assert(otherProfile.data.length === 0, 'Normal user can read another profile.');
+
+    const ownConsents = await normalClient.from('user_consents').select('document_type').eq('user_id', normalCreated.data.user.id);
+    if (ownConsents.error) throw ownConsents.error;
+    assert(ownConsents.data.length === 2, 'Normal user cannot read own consent evidence.');
+
+    const otherConsents = await normalClient.from('user_consents').select('document_type').eq('user_id', adminCreated.data.user.id);
+    if (otherConsents.error) throw otherConsents.error;
+    assert(otherConsents.data.length === 0, 'Normal user can read another user consent evidence.');
+
+    const adminConsents = await roleClient.from('user_consents').select('document_type').eq('user_id', normalCreated.data.user.id);
+    if (adminConsents.error) throw adminConsents.error;
+    assert(adminConsents.data.length === 2, 'Admin cannot read user consent evidence.');
+
+    const auditWrite = await normalClient.rpc('record_auth_audit_event', { p_event_type: 'sign_in', p_provider: 'email', p_metadata: { source: 'rls_test' } });
+    if (auditWrite.error) throw auditWrite.error;
+    const hiddenAudit = await normalClient.from('auth_audit_events').select('id').eq('user_id', normalCreated.data.user.id);
+    if (hiddenAudit.error) throw hiddenAudit.error;
+    assert(hiddenAudit.data.length === 0, 'Normal user can read authentication audit records.');
+    const adminAudit = await roleClient.from('auth_audit_events').select('id').eq('user_id', normalCreated.data.user.id);
+    if (adminAudit.error) throw adminAudit.error;
+    assert(adminAudit.data.length >= 1, 'Admin cannot read authentication audit records.');
 
     const regularPending = await normalClient.from('pending_tools').select('id', { count: 'exact', head: true });
     if (regularPending.error) throw regularPending.error;
@@ -115,9 +136,15 @@ async function main() {
     console.log('PASS email/password login for temporary confirmed users');
     console.log('PASS admin role is read from app_metadata');
     console.log('PASS profile owner-only SELECT');
+    console.log('PASS consent evidence owner/admin SELECT policies');
+    console.log('PASS authentication audit write and admin-only SELECT');
     console.log('PASS pending submissions hidden from normal users and visible to admins');
     console.log('PASS favorites owner-only INSERT/SELECT');
   } finally {
+    if (createdUserIds.length) {
+      const auditCleanup = await adminClient.from('auth_audit_events').delete().in('user_id', createdUserIds);
+      if (auditCleanup.error) console.error(`Audit cleanup failed: ${auditCleanup.error.message}`);
+    }
     for (const userId of createdUserIds.reverse()) {
       const deleted = await adminClient.auth.admin.deleteUser(userId);
       if (deleted.error) console.error(`Cleanup failed for temporary user ${userId}: ${deleted.error.message}`);

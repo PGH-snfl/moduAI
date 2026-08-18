@@ -162,6 +162,9 @@ async function collectYouTube(service: ReturnType<typeof createClient>, apiKey: 
   const search = await searchResponse.json() as { items?: Array<{ id?: { videoId?: string }; snippet?: { title?: string; description?: string; channelTitle?: string; thumbnails?: { high?: { url?: string }; medium?: { url?: string } }; publishedAt?: string } }> }
   const ids = (search.items ?? []).map(item => item.id?.videoId).filter((id): id is string => Boolean(id))
   if (ids.length === 0) return { found: 0, saved: 0 }
+  const { data: existingRows, error: existingError } = await service.from('featured_works').select('external_id,status,is_auto_managed').eq('platform', 'YouTube').in('external_id', ids)
+  if (existingError) throw existingError
+  const existingById = new Map((existingRows ?? []).map(row => [row.external_id, row]))
   const statsUrl = new URL('https://www.googleapis.com/youtube/v3/videos')
   statsUrl.search = new URLSearchParams({ part: 'statistics,snippet,contentDetails', id: ids.join(','), key: apiKey }).toString()
   const statsResponse = await fetch(statsUrl, { signal: AbortSignal.timeout(15_000) })
@@ -193,24 +196,61 @@ async function collectYouTube(service: ReturnType<typeof createClient>, apiKey: 
     if (!thumbnail) { reject('썸네일 없음'); return [] }
     acceptedIds.add(item.id)
     const relevanceScore = Math.min(100, 70 + Math.min(15, hangulCount) + (views >= 10_000 ? 10 : views >= 3_000 ? 5 : 0))
+    const existing = existingById.get(item.id)
     return [{
       platform: 'YouTube', external_id: item.id, title, creator_name: snippet.channelTitle,
       description: (snippet.description ?? '').slice(0, 300) || 'YouTube에서 자동 수집된 AI 관련 영상 후보입니다.',
       thumbnail_url: thumbnail, content_url: `https://www.youtube.com/watch?v=${item.id}`,
       view_count: views, like_count: Number(item.statistics?.likeCount ?? 0), comment_count: Number(item.statistics?.commentCount ?? 0),
       published_at: snippet.publishedAt ?? null, ai_relevance_score: relevanceScore, popularity_score: Math.log10(views + 1) * 10,
-      status: 'draft', featured_from: new Date().toISOString().slice(0, 10), updated_at: new Date().toISOString(),
+      status: existing?.status ?? 'draft', is_auto_managed: existing?.is_auto_managed ?? true,
+      featured_from: new Date().toISOString().slice(0, 10), updated_at: new Date().toISOString(),
     }]
   })
   const rejectedIds = ids.filter(id => !acceptedIds.has(id))
   if (rejectedIds.length > 0) {
-    const { error: rejectError } = await service.from('featured_works').update({ status: 'rejected', updated_at: new Date().toISOString() }).eq('platform', 'YouTube').eq('status', 'draft').in('external_id', rejectedIds)
+    const { error: rejectError } = await service.from('featured_works').update({ status: 'rejected', updated_at: new Date().toISOString() }).eq('platform', 'YouTube').eq('status', 'draft').eq('is_auto_managed', true).in('external_id', rejectedIds)
     if (rejectError) throw rejectError
   }
   if (rows.length === 0) return { found: ids.length, accepted: 0, rejected: rejectedIds.length, saved: 0, rejection_counts: rejectionCounts }
-  const { data, error } = await service.from('featured_works').upsert(rows, { onConflict: 'platform,external_id', ignoreDuplicates: true }).select('id')
+  const { data, error } = await service.from('featured_works').upsert(rows, { onConflict: 'platform,external_id' }).select('id')
   if (error) throw error
   return { found: ids.length, accepted: rows.length, rejected: rejectedIds.length, saved: data?.length ?? 0, rejection_counts: rejectionCounts }
+}
+
+async function rotateYouTubeContent(service: ReturnType<typeof createClient>) {
+  const limit = 3
+  const cutoff = new Date(Date.now() - 30 * 86_400_000).toISOString()
+  const { data: works, error } = await service.from('featured_works').select('id,title,status,view_count,published_at,is_auto_managed').eq('platform', 'YouTube').order('view_count', { ascending: false }).order('published_at', { ascending: false })
+  if (error) throw error
+  const manualApproved = (works ?? []).filter(work => !work.is_auto_managed && work.status === 'approved')
+  const autoWorks = (works ?? []).filter(work => work.is_auto_managed)
+  const eligibleAutoWorks = autoWorks.filter(work => work.status !== 'rejected' && (work.view_count ?? 0) >= MIN_YOUTUBE_VIEWS && Boolean(work.published_at) && work.published_at! >= cutoff)
+  const selected = eligibleAutoWorks.slice(0, Math.max(0, limit - manualApproved.length))
+  const selectedIds = new Set(selected.map(work => work.id))
+  const previous = autoWorks.filter(work => work.status === 'approved')
+  const promoted = selected.filter(work => work.status !== 'approved')
+  const demoted = previous.filter(work => !selectedIds.has(work.id))
+
+  if (previous.length > 0) {
+    const { error: demoteError } = await service.from('featured_works').update({ status: 'draft', updated_at: new Date().toISOString() }).in('id', previous.map(work => work.id))
+    if (demoteError) throw demoteError
+  }
+  if (selected.length > 0) {
+    const { error: promoteError } = await service.from('featured_works').update({ status: 'approved', featured_from: new Date().toISOString().slice(0, 10), updated_at: new Date().toISOString() }).in('id', selected.map(work => work.id))
+    if (promoteError) throw promoteError
+  }
+  if (promoted.length > 0 || demoted.length > 0) {
+    const promotedNames = promoted.map(work => work.title).join(', ') || '없음'
+    const demotedNames = demoted.map(work => work.title).join(', ') || '없음'
+    await service.from('admin_notifications').insert({
+      notification_type: 'youtube_auto_rotation',
+      title: `YouTube 메인 콘텐츠 자동 교체 · ${promoted.length}개 신규 노출`,
+      message: `신규 노출: ${promotedNames} / 노출 종료: ${demotedNames}`,
+      metadata: { promoted: promoted.map(work => ({ id: work.id, title: work.title })), demoted: demoted.map(work => ({ id: work.id, title: work.title })), selected_count: selected.length, manual_approved_count: manualApproved.length },
+    })
+  }
+  return { selected: selected.length, manual_approved: manualApproved.length, promoted: promoted.length, demoted: demoted.length, titles: selected.map(work => work.title) }
 }
 
 Deno.serve(async req => {
@@ -250,7 +290,7 @@ Deno.serve(async req => {
     }
     const youtubeKey = Deno.env.get('YOUTUBE_API_KEY')
     if (youtubeKey) {
-      try { const result = await collectYouTube(service, youtubeKey); details.youtube = result; found += result.found; saved += result.saved } catch (error) { errors.push(error instanceof Error ? error.message : 'YouTube 수집 실패') }
+      try { const result = await collectYouTube(service, youtubeKey); const rotation = await rotateYouTubeContent(service); details.youtube = { ...result, rotation }; found += result.found; saved += result.saved } catch (error) { errors.push(error instanceof Error ? error.message : 'YouTube 수집 실패') }
     } else details.youtube = { skipped: true, reason: 'YOUTUBE_API_KEY 미설정' }
     const status = errors.length === 0 ? 'success' : saved > 0 ? 'partial' : 'failed'
     const message = `후보 ${found}개를 확인하고 ${saved}개를 저장했습니다.${errors.length ? ` 오류: ${errors.join(', ')}` : ''}`

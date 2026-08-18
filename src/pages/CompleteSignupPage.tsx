@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
+import { PRIVACY_VERSION, TERMS_VERSION } from '@/lib/legal';
 
 export function CompleteSignupPage() {
   const { user, isLoading, signOut } = useAuth();
@@ -15,6 +16,8 @@ export function CompleteSignupPage() {
   const [searchParams] = useSearchParams();
   const requestedReturnTo = searchParams.get('returnTo') || '/tools';
   const returnTo = requestedReturnTo.startsWith('/') && !requestedReturnTo.startsWith('//') ? requestedReturnTo : '/tools';
+  const requestedProvider = searchParams.get('provider');
+  const socialProvider = requestedProvider === 'google' || requestedProvider === 'kakao' ? requestedProvider : null;
   const [displayName, setDisplayName] = useState('');
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [privacyAccepted, setPrivacyAccepted] = useState(false);
@@ -37,8 +40,25 @@ export function CompleteSignupPage() {
         .maybeSingle();
 
       if (profileError) {
-        setError('회원 정보를 확인하지 못했습니다. 잠시 후 다시 시도해주세요.');
-      } else if (data?.onboarding_completed) {
+        try { await signOut(); } catch { /* navigation still clears the protected flow */ }
+        navigate('/login', { replace: true, state: { notice: '회원 정보를 확인하지 못해 안전하게 로그아웃했습니다. 처음부터 다시 로그인해주세요.' } });
+        return;
+      }
+
+      if (socialProvider) {
+        const { error: auditError } = await supabase.rpc('record_auth_audit_event', {
+          p_event_type: 'sign_in',
+          p_provider: socialProvider,
+          p_metadata: { source: 'oauth_callback' },
+        });
+        if (auditError) {
+          setError('로그인 보안 기록을 저장하지 못했습니다. 새로고침 후 다시 시도해주세요.');
+          setChecking(false);
+          return;
+        }
+      }
+
+      if (data?.onboarding_completed) {
         navigate(returnTo, { replace: true });
         return;
       } else {
@@ -48,7 +68,7 @@ export function CompleteSignupPage() {
     };
 
     void checkSignup();
-  }, [isLoading, navigate, returnTo, user]);
+  }, [isLoading, navigate, returnTo, signOut, socialProvider, user]);
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
@@ -59,13 +79,11 @@ export function CompleteSignupPage() {
     if (!termsAccepted || !privacyAccepted) return setError('필수 약관에 모두 동의해주세요.');
 
     setSaving(true);
-    const { error: profileError } = await supabase.from('user_profiles').upsert({
-      id: user.id,
-      display_name: displayName.trim(),
-      avatar_url: user.user_metadata?.avatar_url || user.user_metadata?.picture || null,
-      onboarding_completed: true,
-      signup_provider: user.app_metadata?.provider || 'email',
-      updated_at: new Date().toISOString(),
+    const { error: profileError } = await supabase.rpc('complete_social_onboarding', {
+      p_display_name: displayName.trim(),
+      p_avatar_url: user.user_metadata?.avatar_url || user.user_metadata?.picture || null,
+      p_terms_version: TERMS_VERSION,
+      p_privacy_version: PRIVACY_VERSION,
     });
 
     if (profileError) {
@@ -74,7 +92,7 @@ export function CompleteSignupPage() {
       return;
     }
 
-    await supabase.auth.updateUser({ data: { full_name: displayName.trim(), onboarding_completed: true } });
+    await supabase.auth.updateUser({ data: { full_name: displayName.trim() } });
     window.location.replace(returnTo);
   };
 
