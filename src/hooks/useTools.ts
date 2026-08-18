@@ -1,6 +1,7 @@
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabaseClient';
 import type { Database } from '@/types/supabase';
+import { scoreRecommendation, type RecommendationPreferences, type RecommendationScore } from '@/lib/recommendation';
 
 // Export the Tool type from Database
 export type Tool = Database['public']['Tables']['tools']['Row'] & {
@@ -25,6 +26,7 @@ export interface ToolWithRanking extends Tool {
     actual_page_views_30d?: number;
     popularity_level?: string;
     growth_rate?: number;
+    recommendation?: RecommendationScore;
 }
 
 export interface ToolFilter {
@@ -33,6 +35,9 @@ export interface ToolFilter {
     korean: boolean;
     search?: string;
     sort: 'recognition' | 'trending' | 'popular' | 'updated' | 'latest';
+    koreanSupport?: boolean;
+    apiRequired?: boolean;
+    recommendation?: RecommendationPreferences | null;
 }
 
 const PAGE_SIZE = 12;
@@ -146,6 +151,9 @@ export function useTools(filters: ToolFilter) {
                 query = query.eq('is_domestic', true);
             }
 
+            if (filters.koreanSupport) query = query.neq('korean_support_level', 'None');
+            if (filters.apiRequired) query = query.eq('has_api', true);
+
             // 5. Sorting (server-side when no relevance ranking is needed)
             if (!filters.search) switch (sortType) {
                 case 'recognition':
@@ -189,7 +197,15 @@ export function useTools(filters: ToolFilter) {
                 data = data
                     .map(tool => ({ tool, relevance: searchRelevance(tool, q, searchTerms) }))
                     .filter(result => result.relevance > 0)
-                    .sort((a, b) => (b.relevance - a.relevance) || compareBySelectedSort(a.tool, b.tool, sortType))
+                    .map(result => ({
+                        ...result,
+                        tool: filters.recommendation
+                            ? { ...result.tool, recommendation: scoreRecommendation(result.tool, result.relevance, filters.recommendation) }
+                            : result.tool,
+                    }))
+                    .sort((a, b) => filters.recommendation
+                        ? ((b.tool.recommendation?.total ?? 0) - (a.tool.recommendation?.total ?? 0)) || (b.relevance - a.relevance)
+                        : (b.relevance - a.relevance) || compareBySelectedSort(a.tool, b.tool, sortType))
                     .map(result => result.tool);
 
                 const start = pageParam * PAGE_SIZE;

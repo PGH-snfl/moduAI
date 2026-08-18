@@ -3,10 +3,12 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { LazyImage } from '@/components/ui/LazyImage';
 import type { ToolWithTags as BaseTool } from '@/hooks/useTools';
+import type { RecommendationScore } from '@/lib/recommendation';
 
 type Tool = BaseTool & {
     tool_categories?: { categories: { name: string } }[]; // Joined data structure
     korean_support_level?: string; // Ensure this is typed if missing in base
+    recommendation?: RecommendationScore;
 }
 
 interface ToolCardProps {
@@ -97,6 +99,13 @@ export function ToolCard({ tool, ...props }: ToolCardProps) {
                 <p className="mb-5 truncate text-sm text-muted-foreground" title={tool.description?.split('#')[0].trim()}>
                     {tool.description?.split('#')[0].trim()}
                 </p>
+
+                {tool.recommendation && <div className="mb-4 rounded-xl border border-brand-purple/20 bg-brand-purple/5 p-3">
+                    <div className="flex items-center justify-between gap-3"><span className="text-sm font-bold text-brand-purple">맞춤 추천 점수</span><strong className="text-xl text-brand-purple">{tool.recommendation.total}점</strong></div>
+                    <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-brand-purple" style={{ width: `${tool.recommendation.total}%` }} /></div>
+                    <p className="mt-2 text-xs text-muted-foreground">목적 {tool.recommendation.purpose}/40 · 조건 {tool.recommendation.conditions}/35 · 판단 기준 {tool.recommendation.confidence}/25</p>
+                    {tool.recommendation.reasons.length > 0 && <ul className="mt-2 space-y-1">{tool.recommendation.reasons.map(reason => <li key={reason} className="text-xs text-foreground">• {reason}</li>)}</ul>}
+                </div>}
 
                 <div className="mb-4 flex flex-wrap gap-1.5">
                     {tool.is_verified && (

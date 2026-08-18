@@ -7,10 +7,13 @@ import { Flame, ListFilter, Medal, Sparkles } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
+import { RecommendationAssistant } from '@/components/tools/RecommendationAssistant';
+import type { RecommendationPreferences } from '@/lib/recommendation';
 
 export function ToolsPage() {
     const [searchParams] = useSearchParams();
     const query = searchParams.get('q') || '';
+    const [recommendation, setRecommendation] = useState<RecommendationPreferences | null>(null);
 
     const [filters, setFilters] = useState<ToolFilter>({
         category: null,
@@ -22,10 +25,35 @@ export function ToolsPage() {
 
     // Sync filters with URL query
     useEffect(() => {
-        setFilters(prev => ({ ...prev, search: query }));
+        setRecommendation(null);
+        setFilters(prev => ({ ...prev, search: query, pricing: [], koreanSupport: false, apiRequired: false, recommendation: null }));
     }, [query]);
 
     const { data: categories } = useCategories();
+
+    const applyRecommendation = (preferences: RecommendationPreferences) => {
+        const pricing: ToolFilter['pricing'] = preferences.budget === 'free'
+            ? ['Free']
+            : preferences.budget === 'free_or_paid'
+                ? ['Free', 'Freemium']
+                : preferences.budget === 'paid'
+                    ? ['Paid', 'Contact']
+                    : [];
+        setRecommendation(preferences);
+        setFilters(prev => ({
+            ...prev,
+            pricing,
+            koreanSupport: preferences.korean === 'required',
+            apiRequired: preferences.api === 'required',
+            sort: preferences.priority === 'quality' ? 'popular' : 'recognition',
+            recommendation: preferences,
+        }));
+    };
+
+    const resetRecommendation = () => {
+        setRecommendation(null);
+        setFilters(prev => ({ ...prev, pricing: [], koreanSupport: false, apiRequired: false, sort: 'recognition', recommendation: null }));
+    };
 
     const primaryRanks: Array<{
         value: 'recognition' | 'trending' | 'popular';
@@ -39,6 +67,8 @@ export function ToolsPage() {
 
     return (
         <div className="container min-h-screen max-w-7xl mx-auto px-4 py-5 sm:px-6 sm:py-8">
+
+            <RecommendationAssistant query={query} applied={recommendation} onApply={applyRecommendation} onReset={resetRecommendation} />
 
             {/* 1. Category Buttons (Horizontal Scrollable) */}
             {/* Moved Search to Global Header, so Categories are top now */}
