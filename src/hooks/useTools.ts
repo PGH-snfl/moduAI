@@ -18,7 +18,14 @@ export type ToolTagRelation = {
     tags: { id: string; name: string; slug: string } | null;
 };
 
-export type ToolWithTags = Tool & { tool_tags?: ToolTagRelation[] };
+export type ToolCategoryRelation = {
+    categories: { id: string; name: string; slug: string };
+};
+
+export type ToolWithTags = Tool & {
+    tool_tags?: ToolTagRelation[];
+    tool_categories?: ToolCategoryRelation[];
+};
 
 // Tool with ranking info from tool_rankings view
 export interface ToolWithRanking extends Tool {
@@ -40,6 +47,16 @@ export interface ToolFilter {
     recommendation?: RecommendationPreferences | null;
 }
 
+export interface RankingDataStatus {
+    trending_ready: boolean;
+    reputation_ready: boolean;
+    visits_14d: number;
+    previous_visits_7d: number;
+    active_tools_14d: number;
+    review_count: number;
+    reviewed_tools: number;
+}
+
 const PAGE_SIZE = 12;
 
 // Keyword mapping for smart search
@@ -54,20 +71,6 @@ const keywordMap: Record<string, string[]> = {
     '발표': ['#파워포인트', '#프레젠테이션', '#생산성', '발표', 'presentation'],
     '글쓰기': ['#글쓰기', '#컨텐츠', '글쓰기', 'writing', 'write'],
     '챗봇': ['#챗봇', '#대화', 'chatbot', 'chat', 'gpt', 'claude'],
-};
-
-// Category to hashtag mapping
-const categoryHashtags: Record<string, string[]> = {
-    'writing-content': ['#글쓰기', '#컨텐츠', '글쓰기', 'writing', 'content', 'text'],
-    'design-art': ['#디자인', '#아트', '#이미지', '디자인', 'design', 'art', 'image'],
-    'video-audio': ['#비디오', '#오디오', '#영상', '#음악', '#자막', '영상', 'video', 'audio', 'music'],
-    'productivity': ['#생산성', '#협업', '#요약', '생산성', 'productivity', 'collaboration'],
-    'education': ['#교육', '#학습', '교육', 'education', 'learning', 'study'],
-    'development': ['#개발', '#프로그래밍', '#코딩', '개발', 'programming', 'coding', 'developer'],
-    'business-marketing': ['#비지니스', '#마케팅', '비즈니스', 'business', 'marketing'],
-    'search-data': ['#검색', '#데이터', '검색', 'search', 'data'],
-    'entertainment': ['#엔터테이먼트', '#게임', '엔터테인먼트', 'entertainment', 'game'],
-    'others': ['#기타', '기타', 'etc', 'other'],
 };
 
 function includesTerm(value: string | null | undefined, term: string) {
@@ -112,9 +115,12 @@ export function useTools(filters: ToolFilter) {
             
             // The tools table is the single source of truth. No demo data or
             // optional ranking views are used by the production UI.
+            const categoryRelation = filters.category
+                ? 'tool_categories!inner(categories!inner(id, name, slug))'
+                : 'tool_categories(categories(id, name, slug))';
             let query = supabase
                 .from('tools')
-                .select('*, tool_tags(is_primary, position, tags(id, name, slug))', { count: 'exact' });
+                .select(`*, tool_tags(is_primary, position, tags(id, name, slug)), ${categoryRelation}`, { count: 'exact' });
 
             let searchTerms: string[] = [];
             // Search results are ranked after retrieval so feature importance
@@ -133,13 +139,7 @@ export function useTools(filters: ToolFilter) {
             }
 
             // 2. Category filter
-            if (filters.category && categoryHashtags[filters.category]) {
-                const tags = categoryHashtags[filters.category];
-                const categoryCondition = tags.map(tag =>
-                    `description.ilike.%${tag}%`
-                ).join(',');
-                query = query.or(categoryCondition);
-            }
+            if (filters.category) query = query.eq('tool_categories.categories.slug', filters.category);
 
             // 3. Pricing filter
             if (filters.pricing.length > 0) {
@@ -159,15 +159,20 @@ export function useTools(filters: ToolFilter) {
                 case 'recognition':
                     query = query
                         .order(filters.category ? 'task_ranking_score' : 'ranking_score', { ascending: false })
-                        .order('visit_count', { ascending: false });
+                        .order('visit_count', { ascending: false })
+                        .order('name', { ascending: true });
                     break;
                 case 'trending':
-                    query = query.order('trending_score', { ascending: false }).order('ranking_score', { ascending: false });
+                    query = query
+                        .order('trending_score', { ascending: false })
+                        .order('ranking_score', { ascending: false })
+                        .order('name', { ascending: true });
                     break;
                 case 'popular':
                     query = query
                         .order('popularity_score', { ascending: false })
-                        .order('ranking_score', { ascending: false });
+                        .order('ranking_score', { ascending: false })
+                        .order('name', { ascending: true });
                     break;
                 case 'updated':
                     query = query.order('updated_at', { ascending: false });
@@ -236,12 +241,26 @@ export function useCategories() {
             const { data, error } = await supabase
                 .from('categories')
                 .select('*')
-                .order('id', { ascending: true });
+                .eq('is_active', true)
+                .order('display_order', { ascending: true })
+                .order('name', { ascending: true });
 
             if (error) throw error;
             return data;
         },
         staleTime: 10 * 60 * 1000, // Categories rarely change
+    });
+}
+
+export function useRankingDataStatus() {
+    return useQuery({
+        queryKey: ['ranking-data-status'],
+        queryFn: async () => {
+            const { data, error } = await supabase.rpc('get_ranking_data_status');
+            if (error) throw error;
+            return data as unknown as RankingDataStatus;
+        },
+        staleTime: 5 * 60 * 1000,
     });
 }
 
@@ -270,21 +289,18 @@ export function useRelatedTools(currentToolId: string, category: string | null, 
     return useQuery({
         queryKey: ['related-tools', currentToolId, category],
         queryFn: async () => {
+            const categoryRelation = category ? 'tool_categories!inner(categories!inner(slug))' : 'tool_categories(categories(slug))';
             let query = supabase
                 .from('tools')
-                .select('*')
+                .select(`*, ${categoryRelation}`)
                 .neq('id', currentToolId)
                 .limit(limit);
             
-            if (category && categoryHashtags[category]) {
-                const tags = categoryHashtags[category];
-                const condition = tags.map(tag => `description.ilike.%${tag}%`).join(',');
-                query = query.or(condition);
-            }
+            if (category) query = query.eq('tool_categories.categories.slug', category);
             
             const { data, error } = await query;
             if (error) throw error;
-            return data as Tool[];
+            return data as unknown as Tool[];
         },
         enabled: !!currentToolId,
         staleTime: 5 * 60 * 1000,

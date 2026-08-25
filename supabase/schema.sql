@@ -19,8 +19,19 @@ create table public.tools (
   logo_url text,
   pricing_type text, -- 'Free', 'Freemium', 'Paid'
   pricing_start_at text,
+  pricing_verification_status text not null default 'unverified'
+    check (pricing_verification_status in ('official_exact', 'official_partial', 'access_limited', 'custom_quote', 'unavailable', 'unverified')),
+  pricing_checked_at timestamp with time zone,
   korean_support_level text, -- 'Full Support', 'UI only', 'None'
   is_verified boolean default false,
+  source_verified boolean not null default false,
+  hands_on_verified boolean not null default false,
+  api_tested boolean not null default false,
+  korean_tested boolean not null default false,
+  verification_level text not null default 'unverified'
+    check (verification_level in ('unverified', 'official_sources', 'partial_hands_on', 'full_hands_on')),
+  last_tested_at timestamp with time zone,
+  verification_notes text,
   is_domestic boolean default false,
   average_rating numeric(2, 1) default 0.0,
   review_count integer default 0,

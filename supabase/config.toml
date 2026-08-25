@@ -16,3 +16,7 @@ verify_jwt = false
 [functions.collect-home-content]
 enabled = true
 verify_jwt = false
+
+[functions.refresh-tool-information]
+enabled = true
+verify_jwt = false

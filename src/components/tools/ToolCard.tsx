@@ -22,10 +22,6 @@ import { FavoriteButton } from './FavoriteButton';
 export function ToolCard({ tool, ...props }: ToolCardProps) {
     const { trackEvent } = useAnalytics();
 
-    const paidPrice = [tool.pricing_summary, ...(tool.pricing_details || [])]
-        .join(' ')
-        .match(/\$(?!0(?:\D|$))\d+(?:\.\d+)?/)?.[0];
-
     const pricingLabel = tool.pricing_type === 'Free'
         ? '무료'
         : tool.pricing_type === 'Freemium'
@@ -34,13 +30,7 @@ export function ToolCard({ tool, ...props }: ToolCardProps) {
                 ? '유료'
                 : '가격 문의';
 
-    const pricingText = tool.pricing_type === 'Free'
-        ? '무료 이용 가능'
-        : tool.pricing_type === 'Contact'
-            ? '공식 사이트에서 가격 문의'
-            : tool.pricing_type === 'Freemium'
-                ? paidPrice ? `무료 플랜 · 유료 ${paidPrice}부터` : '무료 플랜 · 유료 플랜 제공'
-                : tool.pricing_start_at ? `${tool.pricing_start_at}부터` : paidPrice ? `${paidPrice}부터` : '가격 확인 필요';
+    const pricingText = tool.pricing_summary || tool.pricing_start_at || '가격 확인 필요';
 
     const handleVisit = (e: React.MouseEvent) => {
         e.stopPropagation();
@@ -108,9 +98,14 @@ export function ToolCard({ tool, ...props }: ToolCardProps) {
                 </div>}
 
                 <div className="mb-4 flex flex-wrap gap-1.5">
-                    {tool.is_verified && (
+                    {tool.source_verified && (
                         <Badge variant="outline" className="border-blue-500/40 bg-blue-500/5 text-xs text-blue-600">
                             <CheckCircle2 className="mr-1 size-3" />공식 출처 검증
+                        </Badge>
+                    )}
+                    {tool.hands_on_verified && (
+                        <Badge variant="outline" className="border-emerald-500/40 bg-emerald-500/5 text-xs text-emerald-700">
+                            <CheckCircle2 className="mr-1 size-3" />실사용 검증
                         </Badge>
                     )}
                     {tool.korean_support_level !== 'None' && (

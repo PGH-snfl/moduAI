@@ -113,7 +113,8 @@ export function ToolDetailPage() {
                                     <span>({tool.review_count}개 리뷰)</span>
                                 </div>
                             )}
-                            <span>정보 검증: {tool.is_verified ? '완료' : '확인 중'}</span>
+                            <span>공식 자료: {tool.source_verified ? '검증 완료' : '확인 중'}</span>
+                            <span>실사용: {tool.hands_on_verified ? (tool.verification_level === 'full_hands_on' ? '전체 검증' : '부분 검증') : '미검증'}</span>
                         </div>
 
                         <p className="text-lg text-muted-foreground leading-relaxed max-w-2xl">
@@ -190,6 +191,9 @@ export function ToolDetailPage() {
                             {tool.pricing_verified_at && (
                                 <p className="text-xs text-muted-foreground">가격 확인일: {new Date(tool.pricing_verified_at).toLocaleDateString('ko-KR')}</p>
                             )}
+                            {!tool.pricing_verified_at && tool.pricing_checked_at && (
+                                <p className="text-xs text-amber-700">공식 페이지 확인일: {new Date(tool.pricing_checked_at).toLocaleDateString('ko-KR')} · 금액 직접 확인 불가</p>
+                            )}
                             {tool.pricing_url && (
                                 <Button asChild className="w-full" variant="secondary">
                                     <a href={tool.pricing_url} target="_blank" rel="noopener noreferrer">공식 가격·결제 안내</a>
@@ -199,7 +203,15 @@ export function ToolDetailPage() {
                         {tool.verification_sources && tool.verification_sources.length > 0 && (
                             <div className="rounded-xl border bg-card p-6 space-y-3">
                                 <h3 className="font-semibold text-lg">검증 정보</h3>
-                                {tool.verified_at && <p className="text-xs text-muted-foreground">최종 검증일: {new Date(tool.verified_at).toLocaleDateString('ko-KR')}</p>}
+                                <div className="grid gap-1 text-sm">
+                                    <p>공식 자료 검증: {tool.source_verified ? '완료' : '미완료'}</p>
+                                    <p>실사용 검증: {tool.hands_on_verified ? (tool.verification_level === 'full_hands_on' ? '전체 완료' : '부분 완료') : '미실시'}</p>
+                                    {tool.has_api && <p>API 실제 호출: {tool.api_tested ? '성공 확인' : '미테스트'}</p>}
+                                    {tool.korean_support_level !== 'None' && <p>한국어 실제 검사: {tool.korean_tested ? '완료' : '미테스트'}</p>}
+                                </div>
+                                {tool.verification_notes && <p className="rounded-lg bg-muted p-3 text-xs leading-5 text-muted-foreground">{tool.verification_notes}</p>}
+                                {tool.verified_at && <p className="text-xs text-muted-foreground">공식 자료 확인일: {new Date(tool.verified_at).toLocaleDateString('ko-KR')}</p>}
+                                {tool.last_tested_at && <p className="text-xs text-muted-foreground">최근 실사용 검사일: {new Date(tool.last_tested_at).toLocaleDateString('ko-KR')}</p>}
                                 <div className="space-y-2">
                                     {tool.verification_sources.map((source, index) => (
                                         <a key={source} href={source} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-sm text-brand-purple hover:underline">

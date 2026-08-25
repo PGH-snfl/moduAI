@@ -62,65 +62,83 @@ Deno.serve(async req => {
       }
       const domain = websiteDomain(tool.url)
       if (domain && similarwebKey) {
-        const now = new Date()
-        const previousMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1))
-        const month = previousMonth.toISOString().slice(0, 7)
-        const endpoint = new URL(`https://api.similarweb.com/v1/website/${encodeURIComponent(domain)}/total-traffic-and-engagement/visits`)
-        endpoint.search = new URLSearchParams({ api_key: similarwebKey, start_date: month, end_date: month, country: 'world', granularity: 'monthly', main_domain_only: 'false', format: 'json' }).toString()
-        const response = await fetch(endpoint, { signal: AbortSignal.timeout(20_000) })
-        if (!response.ok) throw new Error(`Similarweb HTTP ${response.status}`)
-        const visits = findVisits(await response.json())
-        if (visits.length) {
-          signal.website_monthly_visits = Math.round(visits.reduce((sum, count) => sum + count, 0))
-          signal.website_traffic_provider = 'similarweb'
-          signal.website_traffic_period = month
+        try {
+          const now = new Date()
+          const previousMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1))
+          const month = previousMonth.toISOString().slice(0, 7)
+          const endpoint = new URL(`https://api.similarweb.com/v1/website/${encodeURIComponent(domain)}/total-traffic-and-engagement/visits`)
+          endpoint.search = new URLSearchParams({ api_key: similarwebKey, start_date: month, end_date: month, country: 'world', granularity: 'monthly', main_domain_only: 'false', format: 'json' }).toString()
+          const response = await fetch(endpoint, { signal: AbortSignal.timeout(20_000) })
+          if (!response.ok) throw new Error(`HTTP ${response.status}`)
+          const visits = findVisits(await response.json())
+          if (visits.length) {
+            signal.website_monthly_visits = Math.round(visits.reduce((sum, count) => sum + count, 0))
+            signal.website_traffic_provider = 'similarweb'
+            signal.website_traffic_period = month
+          }
+        } catch (error) {
+          failures.push(`${tool.name} Similarweb: ${error instanceof Error ? error.message : String(error)}`)
         }
       } else if (domain) {
-        const response = await fetch(`https://tranco-list.eu/api/ranks/domain/${encodeURIComponent(domain)}`, { signal: AbortSignal.timeout(15_000) })
-        if (!response.ok) throw new Error(`Tranco HTTP ${response.status}`)
-        const data = await response.json()
-        const latest = Array.isArray(data.ranks) ? data.ranks.find((entry: { rank?: number }) => Number.isFinite(entry.rank)) : null
-        if (latest) {
-          signal.website_traffic_rank = latest.rank
-          signal.website_traffic_provider = 'tranco'
-          signal.website_traffic_period = latest.date
+        try {
+          const response = await fetch(`https://tranco-list.eu/api/ranks/domain/${encodeURIComponent(domain)}`, { signal: AbortSignal.timeout(15_000) })
+          if (!response.ok && response.status !== 404) throw new Error(`HTTP ${response.status}`)
+          if (response.ok) {
+            const data = await response.json()
+            const latest = Array.isArray(data.ranks) ? data.ranks.find((entry: { rank?: number }) => Number.isFinite(entry.rank)) : null
+            if (latest) {
+              signal.website_traffic_rank = latest.rank
+              signal.website_traffic_provider = 'tranco'
+              signal.website_traffic_period = latest.date
+            }
+          }
+        } catch (error) {
+          failures.push(`${tool.name} Tranco: ${error instanceof Error ? error.message : String(error)}`)
         }
       }
       if (tool.github_url) {
-        const repo = githubRepo(tool.github_url)
-        if (!repo) throw new Error('invalid GitHub URL')
-        const requestHeaders: Record<string, string> = {
-          Accept: 'application/vnd.github+json',
-          'X-GitHub-Api-Version': '2022-11-28',
-          'User-Agent': 'ModuAI-RankingBot/1.0',
+        try {
+          const repo = githubRepo(tool.github_url)
+          if (!repo) throw new Error('invalid repository URL')
+          const requestHeaders: Record<string, string> = {
+            Accept: 'application/vnd.github+json',
+            'X-GitHub-Api-Version': '2022-11-28',
+            'User-Agent': 'ModuAI-RankingBot/1.0',
+          }
+          if (token) requestHeaders.Authorization = `Bearer ${token}`
+          const response = await fetch(`https://api.github.com/repos/${encodeURIComponent(repo.owner)}/${encodeURIComponent(repo.repo)}`, {
+            headers: requestHeaders, signal: AbortSignal.timeout(15_000),
+          })
+          if (!response.ok) throw new Error(`HTTP ${response.status}`)
+          const data = await response.json()
+          Object.assign(signal, {
+            github_stars: data.stargazers_count ?? 0,
+            github_forks: data.forks_count ?? 0,
+            github_open_issues: data.open_issues_count ?? 0,
+            github_pushed_at: data.pushed_at,
+            source_url: data.html_url,
+          })
+        } catch (error) {
+          failures.push(`${tool.name} GitHub: ${error instanceof Error ? error.message : String(error)}`)
         }
-        if (token) requestHeaders.Authorization = `Bearer ${token}`
-        const response = await fetch(`https://api.github.com/repos/${encodeURIComponent(repo.owner)}/${encodeURIComponent(repo.repo)}`, {
-          headers: requestHeaders, signal: AbortSignal.timeout(15_000),
-        })
-        if (!response.ok) throw new Error(`GitHub HTTP ${response.status}`)
-        const data = await response.json()
-        Object.assign(signal, {
-          github_stars: data.stargazers_count ?? 0,
-          github_forks: data.forks_count ?? 0,
-          github_open_issues: data.open_issues_count ?? 0,
-          github_pushed_at: data.pushed_at,
-          source_url: data.html_url,
-        })
       }
       if (tool.wikipedia_title) {
-        const end = new Date(Date.now() - 86_400_000)
-        const start = new Date(end.getTime() - 29 * 86_400_000)
-        const day = (date: Date) => date.toISOString().slice(0, 10).replace(/-/g, '')
-        const title = encodeURIComponent(tool.wikipedia_title.replace(/ /g, '_'))
-        const response = await fetch(`https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/en.wikipedia.org/all-access/user/${title}/daily/${day(start)}/${day(end)}`, {
-          headers: { 'User-Agent': 'ModuAI-RankingBot/1.0 (https://modu-ai.vercel.app)' },
-          signal: AbortSignal.timeout(15_000),
-        })
-        if (!response.ok) throw new Error(`Wikimedia HTTP ${response.status}`)
-        const data = await response.json()
-        signal.wikipedia_views_30d = (data.items ?? []).reduce((sum: number, item: { views?: number }) => sum + (item.views ?? 0), 0)
-        if (!signal.source_url) signal.source_url = `https://en.wikipedia.org/wiki/${title}`
+        try {
+          const end = new Date(Date.now() - 86_400_000)
+          const start = new Date(end.getTime() - 29 * 86_400_000)
+          const day = (date: Date) => date.toISOString().slice(0, 10).replace(/-/g, '')
+          const title = encodeURIComponent(tool.wikipedia_title.replace(/ /g, '_'))
+          const response = await fetch(`https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/en.wikipedia.org/all-access/user/${title}/daily/${day(start)}/${day(end)}`, {
+            headers: { 'User-Agent': 'ModuAI-RankingBot/1.0 (https://modu-ai.vercel.app)' },
+            signal: AbortSignal.timeout(15_000),
+          })
+          if (!response.ok) throw new Error(`HTTP ${response.status}`)
+          const data = await response.json()
+          signal.wikipedia_views_30d = (data.items ?? []).reduce((sum: number, item: { views?: number }) => sum + (item.views ?? 0), 0)
+          if (!signal.source_url) signal.source_url = `https://en.wikipedia.org/wiki/${title}`
+        } catch (error) {
+          failures.push(`${tool.name} Wikimedia: ${error instanceof Error ? error.message : String(error)}`)
+        }
       }
       const { error } = await db.from('external_signals').upsert(signal, { onConflict: 'tool_id' })
       if (error) throw error

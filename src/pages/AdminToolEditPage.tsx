@@ -11,12 +11,15 @@ import { Textarea } from '@/components/ui/textarea';
 import type { Database } from '@/types/supabase';
 
 type Tool = Database['public']['Tables']['tools']['Row'];
+type Category = Database['public']['Tables']['categories']['Row'];
+type ToolWithCategories = Tool & { tool_categories: Array<{ category_id: string }> };
 
 export function AdminToolEditPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [form, setForm] = useState<Partial<Tool>>({});
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
   const [message, setMessage] = useState('');
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
@@ -24,13 +27,26 @@ export function AdminToolEditPage() {
     queryKey: ['admin-tool', id],
     enabled: Boolean(id),
     queryFn: async () => {
-      const { data, error } = await supabase.from('tools').select('*').eq('id', id!).single();
+      const { data, error } = await supabase.from('tools').select('*, tool_categories(category_id)').eq('id', id!).single();
       if (error) throw error;
-      return data as Tool;
+      return data as unknown as ToolWithCategories;
     },
   });
 
-  useEffect(() => { if (tool) setForm(tool); }, [tool]);
+  const categories = useQuery({
+    queryKey: ['categories'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('categories').select('*').eq('is_active', true).order('display_order').order('name');
+      if (error) throw error;
+      return data as Category[];
+    },
+  });
+
+  useEffect(() => {
+    if (!tool) return;
+    setForm(tool);
+    setSelectedCategoryIds(tool.tool_categories.map(relation => relation.category_id));
+  }, [tool]);
 
   const save = useMutation({
     mutationFn: async () => {
@@ -42,7 +58,12 @@ export function AdminToolEditPage() {
         pricing_summary: form.pricing_summary?.trim() || null,
         pricing_url: form.pricing_url?.trim() || null,
         korean_support_level: form.korean_support_level,
-        is_verified: form.is_verified, is_domestic: form.is_domestic,
+        is_verified: form.source_verified, source_verified: form.source_verified,
+        hands_on_verified: form.hands_on_verified, api_tested: form.api_tested,
+        korean_tested: form.korean_tested, verification_level: form.verification_level,
+        verification_notes: form.verification_notes?.trim() || null,
+        last_tested_at: form.hands_on_verified ? (form.last_tested_at || new Date().toISOString()) : null,
+        is_domestic: form.is_domestic,
         has_api: form.has_api, api_url: form.api_url?.trim() || null,
         tool_scope: form.tool_scope,
         primary_features: form.primary_features,
@@ -51,12 +72,18 @@ export function AdminToolEditPage() {
       };
       const { error } = await supabase.from('tools').update(payload).eq('id', id!);
       if (error) throw error;
+      const { error: categoryError } = await supabase.rpc('set_tool_categories', {
+        p_tool_id: id!,
+        p_category_ids: selectedCategoryIds,
+      });
+      if (categoryError) throw categoryError;
     },
     onSuccess: async () => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['all-tools'] }),
         queryClient.invalidateQueries({ queryKey: ['tools'] }),
         queryClient.invalidateQueries({ queryKey: ['tool', id] }),
+        queryClient.invalidateQueries({ queryKey: ['admin-tool', id] }),
       ]);
       setMessage('저장되었습니다.');
     },
@@ -83,6 +110,7 @@ export function AdminToolEditPage() {
     validateUrl('api_url', form.api_url);
     if (form.pricing_type === 'Paid' && !form.pricing_start_at?.trim()) errors.pricing_start_at = '유료 도구의 시작 가격을 입력해주세요.';
     if (form.has_api && !form.api_url?.trim()) errors.api_url = 'API 제공 도구는 공식 API 안내 URL이 필요합니다.';
+    if (selectedCategoryIds.length === 0) errors.categories = '카테고리를 하나 이상 선택해주세요.';
     setFieldErrors(errors);
     if (Object.keys(errors).length > 0) {
       setMessage('입력 내용을 확인해주세요.');
@@ -127,8 +155,36 @@ export function AdminToolEditPage() {
           <Field label="핵심 검색 기능 (한 줄에 하나)"><Textarea value={(form.primary_features ?? []).join('\n')} onChange={e => update('primary_features', e.target.value.split('\n').map(v => v.trim()).filter(Boolean))} /></Field>
           <Field label="보조 검색 기능 (한 줄에 하나)"><Textarea value={(form.secondary_features ?? []).join('\n')} onChange={e => update('secondary_features', e.target.value.split('\n').map(v => v.trim()).filter(Boolean))} /></Field>
         </div>
+        <Field label="카테고리" error={fieldErrors.categories}>
+          <div className="grid gap-2 rounded-xl border bg-muted/20 p-4 sm:grid-cols-2">
+            {categories.isLoading && <p className="col-span-full flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="size-4 animate-spin" />카테고리를 불러오는 중입니다.</p>}
+            {categories.data?.map(category => {
+              const checked = selectedCategoryIds.includes(category.id);
+              return <label key={category.id} className={`flex cursor-pointer items-start gap-3 rounded-lg border px-3 py-3 transition-colors ${checked ? 'border-brand-purple bg-brand-purple/10' : 'bg-background hover:bg-muted/50'}`}>
+                <input type="checkbox" className="mt-0.5 size-4" checked={checked} onChange={() => setSelectedCategoryIds(current => checked ? current.filter(value => value !== category.id) : [...current, category.id])} />
+                <span><span className="block text-sm font-semibold">{category.name}</span>{category.description && <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">{category.description}</span>}</span>
+              </label>;
+            })}
+          </div>
+        </Field>
+        <div className="grid gap-5 rounded-xl border p-4">
+          <Field label="검증 수준">
+            <select className="h-10 rounded-md border bg-background px-3" value={form.verification_level ?? 'unverified'} onChange={e => update('verification_level', e.target.value as Tool['verification_level'])}>
+              <option value="unverified">미검증</option>
+              <option value="official_sources">공식 자료 검증</option>
+              <option value="partial_hands_on">부분 실사용 검증</option>
+              <option value="full_hands_on">전체 실사용 검증</option>
+            </select>
+          </Field>
+          <div className="flex flex-wrap gap-5">
+            <Check label="공식 자료 검증" checked={Boolean(form.source_verified)} onChange={v => update('source_verified', v)} />
+            <Check label="실사용 검증" checked={Boolean(form.hands_on_verified)} onChange={v => update('hands_on_verified', v)} />
+            <Check label="API 실제 호출 성공" checked={Boolean(form.api_tested)} onChange={v => update('api_tested', v)} />
+            <Check label="한국어 실제 검사" checked={Boolean(form.korean_tested)} onChange={v => update('korean_tested', v)} />
+          </div>
+          <Field label="검증 메모"><Textarea rows={3} value={form.verification_notes ?? ''} onChange={e => update('verification_notes', e.target.value)} /></Field>
+        </div>
         <div className="flex flex-wrap gap-5">
-          <Check label="정보 검증 완료" checked={Boolean(form.is_verified)} onChange={v => update('is_verified', v)} />
           <Check label="국내 도구" checked={Boolean(form.is_domestic)} onChange={v => update('is_domestic', v)} />
           <Check label="API 제공" checked={Boolean(form.has_api)} onChange={v => update('has_api', v)} />
         </div>

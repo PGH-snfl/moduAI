@@ -1,12 +1,14 @@
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Newspaper, Rss, ShieldCheck, Wrench } from 'lucide-react';
+import { LayoutDashboard, Newspaper, RefreshCw, Rss, Share2, ShieldCheck, Wrench } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const sections = [
   { to: '/admin/dashboard', label: '대시보드', description: '전체 운영 현황', icon: LayoutDashboard },
   { to: '/admin/tools', label: '도구 관리', description: '제보 검토와 등록 도구', icon: Wrench },
+  { to: '/admin/tool-updates', label: '정보 업데이트', description: '자동 감지 변경 검토', icon: RefreshCw },
   { to: '/admin/content', label: '메인 콘텐츠 관리', description: '추천·작업물·기술 트렌드', icon: Newspaper },
   { to: '/admin/news', label: '뉴스 관리', description: '기사 확인·수정·노출 관리', icon: Rss },
+  { to: '/admin/social-content', label: '소셜 AI 수집', description: '유튜브·인스타·스레드 검토', icon: Share2 },
   { to: '/admin/security', label: '가입·보안 기록', description: '약관 동의와 로그인 감사', icon: ShieldCheck },
 ];
 

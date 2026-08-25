@@ -14,6 +14,7 @@ import { SocialSignupGuard } from '@/components/auth/SocialSignupGuard'
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute'
 import { useAnalytics } from "./hooks/useAnalytics";
 import { recordAnalytics } from '@/lib/analytics';
+import { useHorizontalWheelScroll } from '@/hooks/useHorizontalWheelScroll'
 
 const HomePage = lazy(() => import('@/pages/HomePage').then(module => ({ default: module.HomePage })))
 const ToolsPage = lazy(() => import('@/pages/ToolsPage').then(module => ({ default: module.ToolsPage })))
@@ -32,6 +33,8 @@ const AdminToolEditPage = lazy(() => import('@/pages/AdminToolEditPage').then(mo
 const AdminHomeContentPage = lazy(() => import('@/pages/AdminHomeContentPage').then(module => ({ default: module.AdminHomeContentPage })))
 const AdminNewsPage = lazy(() => import('@/pages/AdminNewsPage').then(module => ({ default: module.AdminNewsPage })))
 const AdminSecurityPage = lazy(() => import('@/pages/AdminSecurityPage').then(module => ({ default: module.AdminSecurityPage })))
+const AdminToolUpdatesPage = lazy(() => import('@/pages/AdminToolUpdatesPage').then(module => ({ default: module.AdminToolUpdatesPage })))
+const AdminSocialContentPage = lazy(() => import('@/pages/AdminSocialContentPage').then(module => ({ default: module.AdminSocialContentPage })))
 
 function PageFallback() {
   return <div className="flex min-h-[55vh] items-center justify-center" role="status" aria-label="화면 불러오는 중"><Loader2 className="size-8 animate-spin text-brand-purple" /></div>
@@ -51,6 +54,8 @@ const AnalyticsTracker = () => {
 };
 
 function App() {
+  useHorizontalWheelScroll()
+
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
@@ -87,6 +92,8 @@ function App() {
                   <Route path="content" element={<AdminHomeContentPage />} />
                   <Route path="news" element={<AdminNewsPage />} />
                   <Route path="security" element={<AdminSecurityPage />} />
+                  <Route path="tool-updates" element={<AdminToolUpdatesPage />} />
+                  <Route path="social-content" element={<AdminSocialContentPage />} />
                 </Route>
               </Routes>
               </Suspense>

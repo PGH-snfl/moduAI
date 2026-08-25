@@ -25,9 +25,18 @@ export interface Database {
           billing_period: string | null
           pricing_url: string | null
           pricing_verified_at: string | null
+          pricing_verification_status: string
+          pricing_checked_at: string | null
           review_count: number
           average_rating: number
           is_verified: boolean
+          source_verified: boolean
+          hands_on_verified: boolean
+          api_tested: boolean
+          korean_tested: boolean
+          verification_level: 'unverified' | 'official_sources' | 'partial_hands_on' | 'full_hands_on'
+          last_tested_at: string | null
+          verification_notes: string | null
           is_domestic: boolean
           korean_support_level: 'None' | 'UI only' | 'Full Support'
           has_api: boolean
@@ -54,7 +63,12 @@ export interface Database {
           trending_score: number
           popularity_score: number
           task_ranking_score: number
+          data_quality_score: number
+          ranking_breakdown: Json
           rank_updated_at: string | null
+          update_check_enabled: boolean
+          update_last_checked_at: string | null
+          update_check_error: string | null
           updated_at: string
           created_at: string
         }
@@ -73,9 +87,18 @@ export interface Database {
           billing_period?: string | null
           pricing_url?: string | null
           pricing_verified_at?: string | null
+          pricing_verification_status?: string
+          pricing_checked_at?: string | null
           review_count?: number
           average_rating?: number
           is_verified?: boolean
+          source_verified?: boolean
+          hands_on_verified?: boolean
+          api_tested?: boolean
+          korean_tested?: boolean
+          verification_level?: 'unverified' | 'official_sources' | 'partial_hands_on' | 'full_hands_on'
+          last_tested_at?: string | null
+          verification_notes?: string | null
           is_domestic?: boolean
           korean_support_level: 'None' | 'UI only' | 'Full Support'
           has_api?: boolean
@@ -102,7 +125,12 @@ export interface Database {
           trending_score?: number
           popularity_score?: number
           task_ranking_score?: number
+          data_quality_score?: number
+          ranking_breakdown?: Json
           rank_updated_at?: string | null
+          update_check_enabled?: boolean
+          update_last_checked_at?: string | null
+          update_check_error?: string | null
           updated_at?: string
           created_at?: string
         }
@@ -121,9 +149,18 @@ export interface Database {
           billing_period?: string | null
           pricing_url?: string | null
           pricing_verified_at?: string | null
+          pricing_verification_status?: string
+          pricing_checked_at?: string | null
           review_count?: number
           average_rating?: number
           is_verified?: boolean
+          source_verified?: boolean
+          hands_on_verified?: boolean
+          api_tested?: boolean
+          korean_tested?: boolean
+          verification_level?: 'unverified' | 'official_sources' | 'partial_hands_on' | 'full_hands_on'
+          last_tested_at?: string | null
+          verification_notes?: string | null
           is_domestic?: boolean
           korean_support_level?: 'None' | 'UI only' | 'Full Support'
           has_api?: boolean
@@ -150,7 +187,12 @@ export interface Database {
           trending_score?: number
           popularity_score?: number
           task_ranking_score?: number
+          data_quality_score?: number
+          ranking_breakdown?: Json
           rank_updated_at?: string | null
+          update_check_enabled?: boolean
+          update_last_checked_at?: string | null
+          update_check_error?: string | null
           updated_at?: string
           created_at?: string
         }
@@ -249,10 +291,34 @@ export interface Database {
         Update: { id?: string; source?: string; status?: 'running' | 'success' | 'partial' | 'failed'; items_found?: number; items_saved?: number; details?: Json; message?: string | null; started_at?: string; completed_at?: string | null }
         Relationships: []
       }
+      social_content_candidates: {
+        Row: { id: string; platform: 'youtube' | 'instagram' | 'threads'; external_id: string; title: string; body: string | null; creator_name: string | null; content_url: string; media_url: string | null; published_at: string | null; view_count: number | null; like_count: number | null; comment_count: number | null; ai_relevance_score: number; matched_keywords: string[]; language: string; status: 'pending' | 'approved' | 'rejected'; raw_data: Json; collected_at: string; reviewed_at: string | null; reviewed_by: string | null; created_at: string; updated_at: string }
+        Insert: { id?: string; platform: 'youtube' | 'instagram' | 'threads'; external_id: string; title: string; body?: string | null; creator_name?: string | null; content_url: string; media_url?: string | null; published_at?: string | null; view_count?: number | null; like_count?: number | null; comment_count?: number | null; ai_relevance_score?: number; matched_keywords?: string[]; language?: string; status?: 'pending' | 'approved' | 'rejected'; raw_data?: Json; collected_at?: string; reviewed_at?: string | null; reviewed_by?: string | null; created_at?: string; updated_at?: string }
+        Update: { title?: string; body?: string | null; creator_name?: string | null; content_url?: string; media_url?: string | null; published_at?: string | null; view_count?: number | null; like_count?: number | null; comment_count?: number | null; ai_relevance_score?: number; matched_keywords?: string[]; language?: string; status?: 'pending' | 'approved' | 'rejected'; raw_data?: Json; collected_at?: string; reviewed_at?: string | null; reviewed_by?: string | null; updated_at?: string }
+        Relationships: []
+      }
+      social_collection_runs: {
+        Row: { id: string; status: 'running' | 'success' | 'partial' | 'failed'; items_found: number; items_saved: number; details: Json; message: string | null; started_at: string; completed_at: string | null }
+        Insert: { id?: string; status?: 'running' | 'success' | 'partial' | 'failed'; items_found?: number; items_saved?: number; details?: Json; message?: string | null; started_at?: string; completed_at?: string | null }
+        Update: { status?: 'running' | 'success' | 'partial' | 'failed'; items_found?: number; items_saved?: number; details?: Json; message?: string | null; completed_at?: string | null }
+        Relationships: []
+      }
       admin_notifications: {
         Row: { id: string; notification_type: string; title: string; message: string; metadata: Json; is_read: boolean; created_at: string }
         Insert: { id?: string; notification_type: string; title: string; message: string; metadata?: Json; is_read?: boolean; created_at?: string }
         Update: { id?: string; notification_type?: string; title?: string; message?: string; metadata?: Json; is_read?: boolean; created_at?: string }
+        Relationships: []
+      }
+      tool_update_runs: {
+        Row: { id: string; trigger_type: 'scheduled' | 'manual'; status: 'running' | 'success' | 'partial' | 'failed'; tools_checked: number; candidates_created: number; errors: Json; started_at: string; completed_at: string | null }
+        Insert: { id?: string; trigger_type?: 'scheduled' | 'manual'; status?: 'running' | 'success' | 'partial' | 'failed'; tools_checked?: number; candidates_created?: number; errors?: Json; started_at?: string; completed_at?: string | null }
+        Update: { trigger_type?: 'scheduled' | 'manual'; status?: 'running' | 'success' | 'partial' | 'failed'; tools_checked?: number; candidates_created?: number; errors?: Json; completed_at?: string | null }
+        Relationships: []
+      }
+      tool_update_candidates: {
+        Row: { id: string; run_id: string | null; tool_id: string; status: 'pending' | 'approved' | 'rejected'; source_url: string; source_title: string | null; current_values: Json; proposed_updates: Json; change_summary: string; evidence: Json; confidence: number; detected_at: string; reviewed_at: string | null; reviewed_by: string | null; admin_notes: string | null }
+        Insert: { id?: string; run_id?: string | null; tool_id: string; status?: 'pending' | 'approved' | 'rejected'; source_url: string; source_title?: string | null; current_values?: Json; proposed_updates?: Json; change_summary: string; evidence?: Json; confidence?: number; detected_at?: string; reviewed_at?: string | null; reviewed_by?: string | null; admin_notes?: string | null }
+        Update: { run_id?: string | null; status?: 'pending' | 'approved' | 'rejected'; source_url?: string; source_title?: string | null; current_values?: Json; proposed_updates?: Json; change_summary?: string; evidence?: Json; confidence?: number; detected_at?: string; reviewed_at?: string | null; reviewed_by?: string | null; admin_notes?: string | null }
         Relationships: []
       }
       reviews: {
@@ -364,18 +430,27 @@ export interface Database {
           id: string
           name: string
           slug: string
+          description: string | null
+          display_order: number
+          is_active: boolean
           created_at: string
         }
         Insert: {
           id?: string
           name: string
           slug: string
+          description?: string | null
+          display_order?: number
+          is_active?: boolean
           created_at?: string
         }
         Update: {
           id?: string
           name?: string
           slug?: string
+          description?: string | null
+          display_order?: number
+          is_active?: boolean
           created_at?: string
         }
         Relationships: []
@@ -384,14 +459,17 @@ export interface Database {
         Row: {
           tool_id: string
           category_id: string
+          created_at: string
         }
         Insert: {
           tool_id: string
           category_id: string
+          created_at?: string
         }
         Update: {
           tool_id?: string
           category_id?: string
+          created_at?: string
         }
         Relationships: []
       }
@@ -726,8 +804,15 @@ export interface Database {
         Args: { p_pending_tool_id: string; p_tool_data?: Json }
         Returns: Database['public']['Tables']['tools']['Row']
       }
+      review_tool_update_candidate: {
+        Args: { p_candidate_id: string; p_decision: 'approved' | 'rejected'; p_admin_notes?: string }
+        Returns: Database['public']['Tables']['tool_update_candidates']['Row']
+      }
+      queue_full_tool_information_refresh: { Args: Record<string, never>; Returns: number }
       record_auth_audit_event: { Args: { p_event_type: string; p_provider?: string | null; p_metadata?: Json }; Returns: undefined }
       complete_social_onboarding: { Args: { p_display_name: string; p_avatar_url: string | null; p_terms_version: string; p_privacy_version: string }; Returns: undefined }
+      set_tool_categories: { Args: { p_tool_id: string; p_category_ids: string[] }; Returns: undefined }
+      get_ranking_data_status: { Args: Record<string, never>; Returns: Json }
     }
     Enums: Record<string, never>
     CompositeTypes: Record<string, never>

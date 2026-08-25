@@ -164,6 +164,7 @@ export function Header() {
                     <div ref={searchAreaRef} className="relative min-w-0 flex-1 2xl:max-w-lg">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground size-4" />
                         <Input
+                            aria-label="AI 도구 검색"
                             aria-expanded={isSearchOpen}
                             aria-controls="desktop-search-panel"
                             placeholder={SEARCH_PLACEHOLDERS[placeholderIndex]}

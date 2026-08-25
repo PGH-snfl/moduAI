@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { ToolGrid } from '@/components/tools/ToolGrid';
-import { useCategories, type ToolFilter } from '@/hooks/useTools';
+import { useCategories, useRankingDataStatus, type ToolFilter } from '@/hooks/useTools';
 import { Button } from '@/components/ui/button';
 import { Flame, ListFilter, Medal, Sparkles } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -30,6 +30,7 @@ export function ToolsPage() {
     }, [query]);
 
     const { data: categories } = useCategories();
+    const rankingStatus = useRankingDataStatus();
 
     const applyRecommendation = (preferences: RecommendationPreferences) => {
         const pricing: ToolFilter['pricing'] = preferences.budget === 'free'
@@ -64,6 +65,18 @@ export function ToolsPage() {
         { value: 'trending', label: '급상승', icon: Flame },
         { value: 'popular', label: '평판', icon: Medal },
     ];
+
+    const isRankReady = (rank: 'recognition' | 'trending' | 'popular') => {
+        if (rank === 'trending') return rankingStatus.data?.trending_ready ?? true;
+        if (rank === 'popular') return rankingStatus.data?.reputation_ready ?? true;
+        return true;
+    };
+
+    useEffect(() => {
+        if (!rankingStatus.data) return;
+        if (filters.sort === 'trending' && !rankingStatus.data.trending_ready) setFilters(prev => ({ ...prev, sort: 'recognition' }));
+        if (filters.sort === 'popular' && !rankingStatus.data.reputation_ready) setFilters(prev => ({ ...prev, sort: 'recognition' }));
+    }, [filters.sort, rankingStatus.data]);
 
     return (
         <div className="container min-h-screen max-w-7xl mx-auto px-4 py-5 sm:px-6 sm:py-8">
@@ -134,21 +147,26 @@ export function ToolsPage() {
                             {primaryRanks.map((rank) => {
                                 const Icon = rank.icon;
                                 const selected = filters.sort === rank.value;
+                                const ready = isRankReady(rank.value);
                                 return (
                                     <button
                                         key={rank.value}
                                         type="button"
                                         aria-pressed={selected}
+                                        disabled={!ready}
+                                        title={!ready ? '실제 사용자 활동 표본이 쌓이면 순위를 제공합니다.' : undefined}
                                         onClick={() => setFilters(prev => ({ ...prev, sort: rank.value }))}
                                         className={cn(
                                             'inline-flex h-9 items-center gap-1 rounded-md border px-2.5 text-xs font-bold whitespace-nowrap transition-colors',
-                                            selected
+                                            !ready
+                                                ? 'cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400'
+                                                : selected
                                                 ? 'border-brand-purple bg-brand-purple text-white'
                                                 : 'border-slate-200 bg-white text-slate-600 hover:border-brand-purple/50 hover:text-brand-purple'
                                         )}
                                     >
                                         <Icon className="size-3.5" />
-                                        {rank.label}
+                                        {rank.label}{!ready && <span className="font-medium">· 집계 중</span>}
                                     </button>
                                 );
                             })}
@@ -176,6 +194,13 @@ export function ToolsPage() {
                     </div>
                 </div>
             </div>
+
+            {rankingStatus.data && (!rankingStatus.data.trending_ready || !rankingStatus.data.reputation_ready) && (
+                <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                    <p className="font-semibold">사용자 활동을 집계하고 있습니다.</p>
+                    <p className="mt-1 text-xs leading-5 text-amber-800">급상승은 최근 방문 50회·활동 도구 3개·이전 기간 데이터가 필요하고, 평판은 리뷰 10개·리뷰 도구 3개부터 제공합니다. 현재 방문 {rankingStatus.data.visits_14d}회, 리뷰 {rankingStatus.data.review_count}개입니다.</p>
+                </div>
+            )}
 
             {/* 3. Tool Grid */}
             <div className="min-h-[500px]">
